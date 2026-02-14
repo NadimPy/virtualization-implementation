@@ -1,10 +1,11 @@
 import sqlite3
 from contextlib import contextmanager
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
-DB_PATH = os.getenv("DB_PATH")
+DB_PATH = os.getenv("DB_PATH") or str(Path("/var/lib/vm-provisioner/vms.db"))
 
 def init_db():
     with sqlite3.connect(DB_PATH) as conn:

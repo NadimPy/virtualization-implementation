@@ -1,6 +1,6 @@
 import sqlite3
 import logging
-from database import get_conn
+from SQL.database import get_conn
 
 logger = logging.getLogger(__name__)
 

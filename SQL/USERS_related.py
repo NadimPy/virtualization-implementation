@@ -2,9 +2,18 @@ import sqlite3
 import uuid
 import logging
 import hashlib
-from database import get_conn
+from .database import get_conn
 
 logger = logging.getLogger(__name__)
+
+def hash_password(password: str) -> str:
+    """Hash password using SHA256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify password against hash - always uses SHA256 for simplicity."""
+    # Always use SHA256 for verification (simpler and consistent)
+    return hashlib.sha256(password.encode()).hexdigest() == hashed
 
 def hash_api_key(plaintext_key: str) -> str:
     """Hash API key for DB storage and lookup."""
@@ -13,13 +22,14 @@ def hash_api_key(plaintext_key: str) -> str:
 def add_user(name: str, password: str, plaintext_api_key: str) -> dict | None:
     user_id = str(uuid.uuid4())
     api_key_hash = hash_api_key(plaintext_api_key)
+    hashed_password = hash_password(password)
     
     try:
         with get_conn() as conn:
             conn.execute(
                 """INSERT INTO users (id, name, hashed_password, api_key_hash)
                    VALUES (?, ?, ?, ?)""",
-                (user_id, name, password, api_key_hash)  # password should be hashed too, but you handle that
+                (user_id, name, hashed_password, api_key_hash)
             )
             conn.commit()
         logger.info(f"User {name} added")
