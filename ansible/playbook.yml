@@ -1,0 +1,290 @@
+---
+# Ansible playbook to provision VM Provisioner server
+# Usage: ansible-playbook -i inventory.ini playbook.yml
+#
+# For SSL, set enable_ssl: true and provide your domain:
+#   ansible-playbook -i inventory.ini playbook.yml -e "enable_ssl=true domain=vm.example.com"
+
+- name: Provision VM Provisioner Server
+  hosts: vm_provisioner
+  become: true
+  gather_facts: true
+
+  vars:
+    app_dir: /opt/vm-provisioner
+    data_dir: /var/lib/vm-provisioner
+    python_version: "3.11"
+    app_user: vmprovisioner
+    # Ports for VM allocation
+    start_port: 2222
+    end_port: 2322
+    # SSL settings (set enable_ssl=true and domain to enable)
+    enable_ssl: false
+    domain: ""
+    app_port: 8000
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install system packages
+      ansible.builtin.package:
+        name:
+          - build-essential
+          - pkg-config
+          - libvirt-dev
+          - python3-dev
+          - python3-pip
+          - git
+          - curl
+          - jq
+          - iptables
+          - qemu-utils
+        state: present
+
+    - name: Install SSL packages
+      ansible.builtin.apt:
+        name:
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+        state: present
+      when: enable_ssl | bool
+
+    - name: Create application user
+      ansible.builtin.user:
+        name: "{{ app_user }}"
+        shell: /bin/bash
+        create_home: true
+        comment: "VM Provisioner Service Account"
+
+    - name: Create data directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+      loop:
+        - "{{ data_dir }}"
+        - "{{ data_dir }}/images"
+        - "{{ data_dir }}/instances"
+        - "{{ data_dir }}/cloud-init"
+
+    - name: Create application directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+
+    - name: Install uv
+      ansible.builtin.pip:
+        name: uv
+        executable: pip3
+
+    - name: Copy application files
+      ansible.builtin.synchronize:
+        src: ../
+        dest: "{{ app_dir }}/"
+        delete: false
+        recursive: true
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.venv"
+          - "--exclude=ansible"
+      become: false
+      delegate_to: localhost
+
+    - name: Set ownership of application files
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        recurse: true
+
+    - name: Create Python virtual environment
+      ansible.builtin.pip:
+        name: uv
+        virtualenv: "{{ app_dir }}/.venv"
+        virtualenv_command: uv venv
+        state: present
+        executable: pip3
+
+    - name: Install Python dependencies
+      community.general.pip:
+        pip_path: "{{ app_dir }}/.venv/bin/pip"
+        name:
+          - fastapi
+          - uvicorn
+          - pycdlib
+          - jinja2
+          - python-dotenv
+          - libvirt-python
+          - scrypt
+
+    - name: Create systemd service file
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/vm-provisioner.service
+        content: |
+          [Unit]
+          Description=VM Provisioner Service
+          After=network.target libvirtd.service
+          Requires=libvirtd.service
+
+          [Service]
+          Type=simple
+          User={{ app_user }}
+          WorkingDirectory={{ app_dir }}
+          Environment="PATH={{ app_dir }}/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+          Environment="PYTHONPATH={{ app_dir }}"
+          Environment="DATA_DIR={{ data_dir }}"
+          ExecStart={{ app_dir }}/.venv/bin/python main.py
+          Restart=always
+          RestartSec=10
+
+          # Libvirt access
+          Environment="LIBVIRT_URI=qemu:///system"
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    - name: Enable and start vm-provisioner service
+      ansible.builtin.systemd:
+        name: vm-provisioner
+        daemon_reload: true
+        enabled: true
+        state: started
+
+    - name: Configure iptables for port forwarding
+      ansible.builtin.iptables:
+        table: nat
+        chain: PREROUTING
+        protocol: tcp
+        destination_port: "{{ item }}"
+        jump: ACCEPT
+        comment: "VM Provisioner SSH port {{ item }}"
+      loop:
+        - "{{ range(start_port, end_port + 1)|list }}"
+      ignore_errors: true
+
+    # SSL Configuration Tasks
+    - name: Create nginx config for HTTP (before certbot)
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/vm-provisioner
+        content: |
+          server {
+              listen 80;
+              server_name {{ domain }};
+
+              location / {
+                  proxy_pass http://127.0.0.1:{{ app_port }};
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+        mode: '0644'
+      when: enable_ssl | bool and domain | length > 0
+
+    - name: Enable nginx site
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/vm-provisioner
+        dest: /etc/nginx/sites-enabled/vm-provisioner
+        state: link
+      when: enable_ssl | bool and domain | length > 0
+      notify: Reload nginx
+
+    - name: Remove default nginx site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      when: enable_ssl | bool and domain | length > 0
+
+    - name: Test nginx config
+      ansible.builtin.command:
+        cmd: nginx -t
+      when: enable_ssl | bool and domain | length > 0
+      register: nginx_test
+      changed_when: false
+
+    - name: Get SSL certificate with Certbot
+      ansible.builtin.command:
+        cmd: certbot --nginx -d {{ domain }} --non-interactive --agree-tos --email admin@{{ domain }}
+      when: enable_ssl | bool and domain | length > 0
+      register: certbot_result
+      failed_when: false
+
+    - name: Reload nginx for SSL
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+      when: enable_ssl | bool and domain | length > 0
+
+    - name: Allow nginx through firewall
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 443
+        jump: ACCEPT
+        comment: "Allow HTTPS"
+      when: enable_ssl | bool and domain | length > 0
+
+    - name: Allow HTTP through firewall
+      ansible.builtin.iptables:
+        chain: INPUT
+        protocol: tcp
+        destination_port: 80
+        jump: ACCEPT
+        comment: "Allow HTTP"
+      when: enable_ssl | bool and domain | length > 0
+
+    - name: Download Debian 12 base image (optional)
+      ansible.builtin.get_url:
+        url: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
+        dest: "{{ data_dir }}/images/debian-12-template.qcow2"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+      ignore_errors: true
+      register: debian_image_download
+
+    - name: Display service status
+      ansible.builtin.service_facts:
+
+    - name: Show completion message
+      ansible.builtin.debug:
+        msg: |
+          ==================================================================
+          VM Provisioner has been provisioned!
+          ==================================================================
+          
+          Service status: {{ ansible_facts.services['vm-provisioner.service'].state | default('unknown') }}
+          
+          Application: {{ app_dir }}
+          Data directory: {{ data_dir }}
+          
+          {% if enable_ssl | bool and domain | length > 0 %}
+          🌐 HTTPS: https://{{ domain }}
+          {% else %}
+          🌐 HTTP: http://{{ ansible_host }}
+          {% endif %}
+          
+          ==================================================================
+          Useful commands:
+            Logs: journalctl -u vm-provisioner -f
+            Restart: systemctl restart vm-provisioner
+            Status: systemctl status vm-provisioner
+          ==================================================================
+
+  handlers:
+    - name: Reload nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
