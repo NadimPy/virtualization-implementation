@@ -1,1 +1,3 @@
 python/
+libvirt-python/*
+.env
