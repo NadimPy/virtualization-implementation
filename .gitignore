@@ -3,3 +3,4 @@ libvirt-python/*
 .env
 !.venv/
 __pycache__/
+convo.txt
