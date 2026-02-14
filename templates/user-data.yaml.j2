@@ -1,0 +1,20 @@
+#cloud-config
+hostname: {{ name }}
+manage_etc_hosts: true
+users:
+  - name: {{ username }}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - {{ ssh_key }}
+    lock_passwd: true
+    passwd: '*'
+ssh_pwauth: false
+chpasswd:
+  expire: false
+package_update: false
+package_upgrade: false
+runcmd:
+  - [ systemctl, enable, qemu-guest-agent ]
+  - [ systemctl, start, qemu-guest-agent ]
+final_message: "The system is finally up, after $UPTIME seconds"
