@@ -611,6 +611,202 @@
         .mt-2 { margin-top: 8px; }
         .mt-4 { margin-top: 16px; }
         .mb-2 { margin-bottom: 8px; }
+
+        /* ---- Modal ---- */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 24px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--color-bg);
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            transform: translateY(8px);
+            transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.open .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--color-border-light);
+            position: sticky;
+            top: 0;
+            background: var(--color-bg);
+            z-index: 1;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            color: var(--color-text-tertiary);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .modal-close:hover {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .tutorial-section {
+            margin-bottom: 28px;
+        }
+
+        .tutorial-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .tutorial-section h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tutorial-section p {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .tutorial-section ol {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+            line-height: 1.8;
+            padding-left: 18px;
+            margin-bottom: 10px;
+        }
+
+        .code-block {
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--color-text-primary);
+            margin: 8px 0;
+            position: relative;
+            overflow-x: auto;
+            line-height: 1.6;
+            white-space: pre;
+        }
+
+        .code-block .code-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            padding: 3px 8px;
+            font-size: 11px;
+            font-family: inherit;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .code-block .code-copy-btn:hover {
+            background: var(--color-bg-tertiary);
+        }
+
+        .os-tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 16px;
+            background: var(--color-bg-tertiary);
+            padding: 3px;
+            border-radius: var(--radius-md);
+            width: fit-content;
+        }
+
+        .os-tab {
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: background 0.15s ease, color 0.15s ease;
+            border: none;
+            background: none;
+            font-family: inherit;
+        }
+
+        .os-tab:hover {
+            color: var(--color-text-primary);
+        }
+
+        .os-tab.active {
+            background: var(--color-bg);
+            color: var(--color-text-primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .os-panel {
+            display: none;
+        }
+
+        .os-panel.active {
+            display: block;
+        }
+
+        .tutorial-note {
+            background: var(--color-accent-light);
+            border: 1px solid #bfdbfe;
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #1e40af;
+            line-height: 1.6;
+            margin-top: 12px;
+        }
     </style>
 </head>
 <body>
@@ -738,7 +934,13 @@
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label" for="sshKey">SSH public key</label>
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+                                    <label class="form-label" for="sshKey" style="margin-bottom:0;">SSH public key</label>
+                                    <button type="button" class="btn btn-ghost btn-sm" onclick="openSSHTutorial()" style="font-size:12px; padding:2px 8px; color:var(--color-accent);">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                        How to generate
+                                    </button>
+                                </div>
                                 <textarea id="sshKey" placeholder="ssh-rsa AAAAB3NzaC1yc2E..." required></textarea>
                                 <div class="form-hint">Paste your public key for SSH access to the instance.</div>
                             </div>
@@ -786,12 +988,100 @@
         </div>
     </div>
 
+    <!-- ============ SSH Tutorial Modal ============ -->
+    <div id="sshTutorialModal" class="modal-overlay" onclick="closeSSHTutorial(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title">Generate an SSH key pair</span>
+                <button class="modal-close" onclick="closeSSHTutorial(event)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="os-tabs">
+                    <button class="os-tab active" onclick="switchOSTab('unix', this)">macOS / Linux</button>
+                    <button class="os-tab" onclick="switchOSTab('windows', this)">Windows</button>
+                </div>
+
+                <!-- macOS / Linux Panel -->
+                <div id="panel-unix" class="os-panel active">
+                    <div class="tutorial-section">
+                        <h3>1. Open Terminal</h3>
+                        <p>On macOS, open <strong>Terminal</strong> from Applications &gt; Utilities. On Linux, use your distribution's terminal emulator.</p>
+                    </div>
+
+                    <div class="tutorial-section">
+                        <h3>2. Generate the key pair</h3>
+                        <p>Run the following command. Press Enter to accept the default file location, then set a passphrase (or leave empty).</p>
+                        <div class="code-block">ssh-keygen -t ed25519 -C "your_email@example.com"<button class="code-copy-btn" onclick="copyCode(this)">Copy</button></div>
+                        <p>If your system does not support Ed25519, use RSA instead:</p>
+                        <div class="code-block">ssh-keygen -t rsa -b 4096 -C "your_email@example.com"<button class="code-copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+
+                    <div class="tutorial-section">
+                        <h3>3. Copy your public key</h3>
+                        <p>Print the public key and copy the full output:</p>
+                        <div class="code-block">cat ~/.ssh/id_ed25519.pub<button class="code-copy-btn" onclick="copyCode(this)">Copy</button></div>
+                        <p>Or for RSA:</p>
+                        <div class="code-block">cat ~/.ssh/id_rsa.pub<button class="code-copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+
+                    <div class="tutorial-section">
+                        <h3>4. Paste into the form</h3>
+                        <p>Copy the entire output (starting with <code>ssh-ed25519</code> or <code>ssh-rsa</code>) and paste it into the SSH public key field above.</p>
+                    </div>
+                </div>
+
+                <!-- Windows Panel -->
+                <div id="panel-windows" class="os-panel">
+                    <div class="tutorial-section">
+                        <h3>Option A: Using Windows 10/11 built-in OpenSSH</h3>
+                        <p>Windows 10 (1809+) and Windows 11 include OpenSSH by default.</p>
+                        <ol>
+                            <li>Open <strong>PowerShell</strong> or <strong>Command Prompt</strong>.</li>
+                            <li>Run the following command:</li>
+                        </ol>
+                        <div class="code-block">ssh-keygen -t ed25519 -C "your_email@example.com"<button class="code-copy-btn" onclick="copyCode(this)">Copy</button></div>
+                        <ol start="3">
+                            <li>Press Enter to accept the default location (<code>C:\Users\YourName\.ssh\id_ed25519</code>).</li>
+                            <li>Set a passphrase or leave empty, then press Enter.</li>
+                            <li>Display your public key:</li>
+                        </ol>
+                        <div class="code-block">type %USERPROFILE%\.ssh\id_ed25519.pub<button class="code-copy-btn" onclick="copyCode(this)">Copy</button></div>
+                    </div>
+
+                    <div class="tutorial-section">
+                        <h3>Option B: Using PuTTYgen</h3>
+                        <ol>
+                            <li>Download and install <strong>PuTTY</strong> from <a href="https://www.putty.org" target="_blank" rel="noopener" style="color:var(--color-accent);">putty.org</a>.</li>
+                            <li>Open <strong>PuTTYgen</strong> from the Start menu.</li>
+                            <li>Select <strong>EdDSA</strong> (or RSA with 4096 bits) and click <strong>Generate</strong>.</li>
+                            <li>Move your mouse randomly over the blank area to generate entropy.</li>
+                            <li>Copy the public key from the text box at the top of the window.</li>
+                            <li>Click <strong>Save private key</strong> to save your private key file.</li>
+                        </ol>
+                    </div>
+
+                    <div class="tutorial-section">
+                        <h3>Paste into the form</h3>
+                        <p>Copy the entire public key output and paste it into the SSH public key field above.</p>
+                    </div>
+                </div>
+
+                <div class="tutorial-note">
+                    <strong>Important:</strong> Never share your private key. Only paste the <strong>public key</strong> (the file ending in <code>.pub</code>) into the form. The private key stays on your machine and is used automatically when you connect via SSH.
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" class="toast"></div>
 
     <script>
         let currentTab = 'all';
         let apiKey = '';
         let userName = '';
+        let serverIp = '';
 
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
@@ -970,6 +1260,7 @@
                 }
 
                 const data = await response.json();
+                if (data.server_ip) serverIp = data.server_ip;
                 renderVMs(data.vms || []);
             } catch (error) {
                 container.innerHTML = '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>' + error.message + '</p></div>';
@@ -1017,7 +1308,7 @@
                     '<div class="vm-right">' +
                         '<span class="badge ' + badgeClass + '"><span class="badge-dot"></span>' + badgeLabel + '</span>' +
                         '<div class="vm-actions">' +
-                            '<button class="btn btn-secondary btn-sm" onclick="copySSH(\'' + vm.ip + '\', \'' + vm.port + '\')">Copy SSH</button>' +
+                            '<button class="btn btn-secondary btn-sm" onclick="copySSH(\'' + vm.port + '\', \'' + (vm.username || 'debian') + '\')">Copy SSH</button>' +
                             '<button class="btn btn-danger btn-sm" onclick="deleteVM(\'' + vm.id + '\')">Delete</button>' +
                         '</div>' +
                     '</div>' +
@@ -1109,13 +1400,13 @@
         }
 
         // ---- Copy SSH Command ----
-        function copySSH(ip, port) {
-            if (!ip || ip === 'null' || !port || port === 'null') {
+        function copySSH(port, username) {
+            if (!port || port === 'null' || !serverIp) {
                 showToast('Connection info not available yet', 'error');
                 return;
             }
 
-            const sshCommand = 'ssh -p ' + port + ' user@' + ip;
+            const sshCommand = 'ssh -p ' + port + ' ' + username + '@' + serverIp + ' -i ~/.ssh/id_rsa';
             navigator.clipboard.writeText(sshCommand).then(() => {
                 showToast('SSH command copied to clipboard', 'success');
             });
@@ -1131,6 +1422,39 @@
                 toast.classList.remove('show');
             }, 3000);
         }
+
+        // ---- SSH Tutorial Modal ----
+        function openSSHTutorial() {
+            document.getElementById('sshTutorialModal').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeSSHTutorial(e) {
+            if (e) e.preventDefault();
+            document.getElementById('sshTutorialModal').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+
+        function switchOSTab(os, el) {
+            document.querySelectorAll('.os-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.os-panel').forEach(p => p.classList.remove('active'));
+            el.classList.add('active');
+            document.getElementById('panel-' + os).classList.add('active');
+        }
+
+        function copyCode(btn) {
+            const block = btn.parentElement;
+            const text = block.textContent.replace('Copy', '').trim();
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'Copied';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+            });
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeSSHTutorial(e);
+        });
     </script>
 </body>
 </html>
