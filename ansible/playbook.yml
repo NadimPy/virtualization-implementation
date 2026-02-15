@@ -190,7 +190,7 @@
           Type=simple
           User={{ app_user }}
           WorkingDirectory={{ app_dir }}
-          Environment="PATH={{ app_dir }}/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+          Environment="PATH={{ app_dir }}/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
           Environment="PYTHONPATH={{ app_dir }}"
           Environment="DATA_DIR={{ data_dir }}"
           ExecStart={{ uv_bin }} run uvicorn main:app --host 0.0.0.0 --port {{ app_port }} --proxy-headers --forwarded-allow-ips=*
