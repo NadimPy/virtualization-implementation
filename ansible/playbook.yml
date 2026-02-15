@@ -85,7 +85,7 @@
 
     - name: Copy application files
       ansible.builtin.synchronize:
-        src: ../
+        src: "{{ playbook_dir }}/../"
         dest: "{{ app_dir }}/"
         delete: false
         recursive: true
@@ -111,7 +111,7 @@
 
     - name: Install Python dependencies using uv
       ansible.builtin.command:
-        cmd: "{{ uv_bin }} add fastapi uvicorn pycdlib jinja2 python-dotenv libvirt-python scrypt"
+        cmd: "{{ uv_bin }} sync"
         chdir: "{{ app_dir }}"
 
     - name: Create systemd service file
