@@ -45,6 +45,8 @@ def create_config_iso(vm_id: str, name: str, image_type: str, ssh_key: str) -> P
         "name": name
     })
     
+    network_config = render_template("network-config.yaml.j2", {})
+    
     # Ensure output directory exists
     CLOUD_INIT_DIR.mkdir(parents=True, exist_ok=True)
     iso_path = CLOUD_INIT_DIR / f"{vm_id}.iso"
@@ -76,6 +78,18 @@ def create_config_iso(vm_id: str, name: str, image_type: str, ssh_key: str) -> P
         '/META_DATA;1',
         joliet_path='/meta-data',
         rr_name='meta-data'
+    )
+    
+    # Add network-config file
+    # Required by RHEL-based images (Rocky Linux, CentOS) to enable DHCP.
+    # Without this, the VM may boot without network and never get a DHCP lease.
+    network_config_bytes = network_config.encode('utf-8')
+    iso.add_fp(
+        io.BytesIO(network_config_bytes),
+        len(network_config_bytes),
+        '/NETWORK_C.;1',
+        joliet_path='/network-config',
+        rr_name='network-config'
     )
     
     # Write and close

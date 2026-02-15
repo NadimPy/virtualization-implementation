@@ -2,6 +2,7 @@ import subprocess
 import time
 import logging
 import json
+import threading
 import libvirt
 from pathlib import Path
 
@@ -9,6 +10,12 @@ from config import START_PORT, END_PORT, VM_NETWORK
 from SQL.database import get_conn
 
 logger = logging.getLogger(__name__)
+
+# Thread-safe reference counter for libvirt error suppression.
+# Multiple concurrent poll_vm_ip calls can suppress errors; the default
+# handler is only restored when the last one finishes.
+_error_suppress_lock = threading.Lock()
+_error_suppress_count = 0
 
 
 def allocate_port() -> int:
@@ -185,16 +192,34 @@ def _suppress_libvirt_errors():
     directly to stderr every time a guest-agent query fails.
     Replacing the handler silences this while we still catch the
     libvirtError exception in Python.
+    
+    Thread-safe: uses a reference counter so concurrent poll_vm_ip
+    calls don't interfere with each other.
     """
+    global _error_suppress_count
+    
     def _noop_error_handler(_userdata, _error):
         pass
     
-    libvirt.registerErrorHandler(_noop_error_handler, None)
+    with _error_suppress_lock:
+        _error_suppress_count += 1
+        if _error_suppress_count == 1:
+            # First suppressor — install the no-op handler
+            libvirt.registerErrorHandler(_noop_error_handler, None)
 
 
 def _restore_libvirt_errors():
-    """Restore the default libvirt error handler."""
-    libvirt.registerErrorHandler(None, None)
+    """
+    Restore the default libvirt error handler when the last
+    suppressor releases.
+    """
+    global _error_suppress_count
+    
+    with _error_suppress_lock:
+        _error_suppress_count = max(0, _error_suppress_count - 1)
+        if _error_suppress_count == 0:
+            # Last suppressor done — restore default handler
+            libvirt.registerErrorHandler(None, None)
 
 
 def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 120) -> str:
