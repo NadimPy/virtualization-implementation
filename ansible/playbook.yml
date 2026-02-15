@@ -52,6 +52,14 @@
           - python3-certbot-nginx
         state: present
 
+    - name: Enable IPv4 forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: true
+        state: present
+        reload: true
+
     - name: Enable and start libvirtd
       ansible.builtin.systemd:
         name: libvirtd
@@ -215,16 +223,12 @@
         enabled: true
         state: started
 
-    - name: Configure iptables for port forwarding
-      ansible.builtin.iptables:
-        table: nat
-        chain: PREROUTING
-        protocol: tcp
-        destination_port: "{{ item }}"
-        jump: ACCEPT
-        comment: "VM Provisioner SSH port {{ item }}"
+    - name: Flush stale ACCEPT rules from nat PREROUTING
+      ansible.builtin.command:
+        cmd: "iptables -t nat -D PREROUTING -p tcp --dport {{ item }} -j ACCEPT -m comment --comment 'VM Provisioner SSH port {{ item }}'"
       loop: "{{ range(start_port, end_port + 1)|list }}"
-      ignore_errors: true
+      failed_when: false
+      changed_when: false
 
     # SSL Configuration Tasks
     - name: Create nginx config for HTTP

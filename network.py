@@ -32,33 +32,59 @@ def allocate_port() -> int:
 
 def add_port_forward(host_port: int, vm_ip: str) -> None:
     """
-    Add iptables DNAT rule to forward host_port -> vm_ip:22.
+    Add iptables rules to forward host_port -> vm_ip:22.
     
     This allows: ssh -p <host_port> user@<server_public_ip>
+    
+    Two rules are needed:
+      1. PREROUTING DNAT: rewrite destination to vm_ip:22
+      2. FORWARD ACCEPT: allow the rewritten packet through to the VM
     """
-    cmd = [
+    # DNAT rule in PREROUTING
+    dnat_cmd = [
         "iptables", "-t", "nat", "-A", "PREROUTING",
         "-p", "tcp",
         "--dport", str(host_port),
         "-j", "DNAT",
         "--to-destination", f"{vm_ip}:22"
     ]
+    subprocess.run(dnat_cmd, check=True, capture_output=True, text=True)
     
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+    # FORWARD rule to allow the DNAT'd traffic through
+    forward_cmd = [
+        "iptables", "-A", "FORWARD",
+        "-p", "tcp",
+        "-d", vm_ip,
+        "--dport", "22",
+        "-j", "ACCEPT"
+    ]
+    subprocess.run(forward_cmd, check=True, capture_output=True, text=True)
+    
     logger.info(f"Added port forward: host:{host_port} -> {vm_ip}:22")
 
 
 def remove_port_forward(host_port: int, vm_ip: str) -> None:
-    """Remove iptables DNAT rule when VM is destroyed."""
-    cmd = [
+    """Remove iptables DNAT and FORWARD rules when VM is destroyed."""
+    # Remove DNAT rule
+    dnat_cmd = [
         "iptables", "-t", "nat", "-D", "PREROUTING",
         "-p", "tcp",
         "--dport", str(host_port),
         "-j", "DNAT",
         "--to-destination", f"{vm_ip}:22"
     ]
+    subprocess.run(dnat_cmd, check=True, capture_output=True, text=True)
     
-    subprocess.run(cmd, check=True, capture_output=True, text=True)
+    # Remove FORWARD rule
+    forward_cmd = [
+        "iptables", "-D", "FORWARD",
+        "-p", "tcp",
+        "-d", vm_ip,
+        "--dport", "22",
+        "-j", "ACCEPT"
+    ]
+    subprocess.run(forward_cmd, check=False, capture_output=True, text=True)
+    
     logger.info(f"Removed port forward: host:{host_port} -> {vm_ip}:22")
 
 
