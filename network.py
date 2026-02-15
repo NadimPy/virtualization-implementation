@@ -84,7 +84,12 @@ def get_vm_ip_from_leases(mac_address: str, timeout: int = 30) -> str | None:
 
 def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 60) -> str:
     """
-    Poll qemu-guest-agent for VM IP address.
+    Poll for VM IP address using multiple methods.
+    
+    Tries in order:
+      1. DHCP lease from libvirt's dnsmasq (no guest agent needed)
+      2. QEMU guest agent (requires qemu-guest-agent in the VM)
+      3. dnsmasq leases file on disk (last resort fallback)
     
     Args:
         libvirt_conn: libvirt connection object
@@ -98,32 +103,48 @@ def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 60) -> str:
         TimeoutError: If IP not available within timeout
     """
     dom = libvirt_conn.lookupByUUIDString(vm_uuid)
+    mac_address = None
     
     for attempt in range(timeout // 2):
+        # Method 1: DHCP leases via libvirt API (most reliable, no agent needed)
         try:
-            # Query guest agent for network interfaces
-            result = dom.guestInfo(
-                libvirt.VIR_DOMAIN_GUEST_INFO_INTERFACES,
-                0  # flags
+            ifaces = dom.interfaceAddresses(
+                libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE
             )
-            
-            # Parse result (JSON string from agent)
-            if result:
-                interfaces = json.loads(result)
-                for iface in interfaces.get("interfaces", []):
-                    if iface.get("name") == "eth0" or iface.get("name") == "enp1s0":
-                        for addr in iface.get("addresses", []):
-                            if addr.get("type") == libvirt.VIR_IP_ADDR_TYPE_IPV4:
-                                ip = addr.get("addr")
-                                if ip and not ip.startswith("127."):
-                                    logger.info(f"Found IP {ip} for VM {vm_uuid}")
-                                    return ip
-        
+            for iface_name, iface_data in ifaces.items():
+                if mac_address is None and iface_data.get("hwaddr"):
+                    mac_address = iface_data["hwaddr"]
+                for addr in iface_data.get("addrs", []):
+                    ip = addr.get("addr")
+                    if ip and not ip.startswith("127."):
+                        logger.info(f"Found IP {ip} for VM {vm_uuid} via DHCP lease")
+                        return ip
         except libvirt.libvirtError:
-            # Guest agent not ready yet
+            pass
+        
+        # Method 2: QEMU guest agent (works if agent is installed in VM)
+        try:
+            ifaces = dom.interfaceAddresses(
+                libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
+            )
+            for iface_name, iface_data in ifaces.items():
+                for addr in iface_data.get("addrs", []):
+                    if addr.get("type") == libvirt.VIR_IP_ADDR_TYPE_IPV4:
+                        ip = addr.get("addr")
+                        if ip and not ip.startswith("127."):
+                            logger.info(f"Found IP {ip} for VM {vm_uuid} via guest agent")
+                            return ip
+        except libvirt.libvirtError:
             pass
         
         time.sleep(2)
+    
+    # Method 3: Fall back to reading dnsmasq leases file directly
+    if mac_address:
+        ip = get_vm_ip_from_leases(mac_address, timeout=10)
+        if ip:
+            logger.info(f"Found IP {ip} for VM {vm_uuid} via leases file")
+            return ip
     
     raise TimeoutError(f"Could not get IP for VM {vm_uuid} within {timeout}s")
 
