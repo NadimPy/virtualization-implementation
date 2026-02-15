@@ -18,7 +18,19 @@ echo -e "${GREEN}VM Provisioner - Ansible Setup${NC}\n"
 # Check if ansible is installed
 if ! command -v ansible-playbook &> /dev/null; then
     echo -e "${YELLOW}Ansible not found. Installing...${NC}"
-    pip install -r ansible/requirements.yml
+    
+    # Try pipx first (recommended for Debian 12)
+    if ! command -v pipx &> /dev/null; then
+        echo "Installing pipx..."
+        apt-get update && apt-get install -y pipx
+    fi
+    
+    # Install ansible via pipx
+    pipx install ansible-core
+    pipx ensurepath
+    
+    # Source the path
+    export PATH="$HOME/.local/bin:$PATH"
 fi
 
 # Check inventory file
@@ -39,9 +51,9 @@ echo -e "${BLUE}SSL/HTTPS is enabled by default${NC}"
 echo -e "Domain: beirut-central1.nadimchendy.com"
 echo ""
 
-# Run the playbook
+# Run the playbook (use full path)
 echo -e "${GREEN}Running Ansible playbook...${NC}\n"
-ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+~/.local/bin/ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
 
 echo -e "\n${GREEN}=========================================="
 echo "Setup complete!"
