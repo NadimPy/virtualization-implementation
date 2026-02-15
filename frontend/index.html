@@ -3,666 +3,937 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VM Provisioner Dashboard</title>
+    <title>VM Provisioner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * {
+        *, *::before, *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
+        :root {
+            --color-bg: #ffffff;
+            --color-bg-secondary: #f8f9fb;
+            --color-bg-tertiary: #f1f3f5;
+            --color-border: #e2e5e9;
+            --color-border-light: #eceef1;
+            --color-text-primary: #1a1d21;
+            --color-text-secondary: #5c6370;
+            --color-text-tertiary: #8b919a;
+            --color-accent: #2563eb;
+            --color-accent-hover: #1d4ed8;
+            --color-accent-light: #eff4ff;
+            --color-danger: #dc2626;
+            --color-danger-hover: #b91c1c;
+            --color-danger-light: #fef2f2;
+            --color-success: #16a34a;
+            --color-success-light: #f0fdf4;
+            --color-warning: #d97706;
+            --color-warning-light: #fffbeb;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-lg: 0 4px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04);
+            --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg-secondary);
             min-height: 100vh;
-            color: #fff;
+            color: var(--color-text-primary);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        header {
+
+        /* ---- Top Navigation ---- */
+        .topnav {
+            background: var(--color-bg);
+            border-bottom: 1px solid var(--color-border);
+            padding: 0 32px;
+            height: 56px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 20px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 30px;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
         }
-        
-        h1 {
-            font-size: 28px;
+
+        .topnav-brand {
             display: flex;
             align-items: center;
             gap: 10px;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--color-text-primary);
+            letter-spacing: -0.02em;
         }
-        
-        h1 span {
-            font-size: 32px;
+
+        .topnav-brand svg {
+            color: var(--color-accent);
         }
-        
-        .user-info {
+
+        .topnav-right {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 16px;
         }
-        
-        .user-name {
-            color: #00d9ff;
+
+        .topnav-user {
+            font-size: 13px;
+            color: var(--color-text-secondary);
             font-weight: 500;
         }
-        
-        .btn-logout {
-            background: rgba(255,255,255,0.1);
-            color: #fff;
-            border: 1px solid rgba(255,255,255,0.2);
+
+        /* ---- Buttons ---- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+            line-height: 1.4;
+            white-space: nowrap;
         }
-        
-        input, textarea, select {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.2);
+
+        .btn:focus-visible {
+            outline: 2px solid var(--color-accent);
+            outline-offset: 2px;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
             color: #fff;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 14px;
+            border-color: var(--color-accent);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-accent-hover);
+            border-color: var(--color-accent-hover);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: var(--color-bg);
+            color: var(--color-text-primary);
+            border-color: var(--color-border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-bg-secondary);
+            border-color: #d0d4da;
+        }
+
+        .btn-danger {
+            background: var(--color-bg);
+            color: var(--color-danger);
+            border-color: var(--color-border);
+        }
+
+        .btn-danger:hover {
+            background: var(--color-danger-light);
+            border-color: var(--color-danger);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--color-text-secondary);
+            border-color: transparent;
+            padding: 6px 12px;
+        }
+
+        .btn-ghost:hover {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+        }
+
+        .btn-sm {
+            font-size: 12px;
+            padding: 5px 10px;
+        }
+
+        .btn-full {
             width: 100%;
         }
-        
+
+        /* ---- Form Controls ---- */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-text-primary);
+            margin-bottom: 6px;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: var(--color-text-tertiary);
+            margin-top: 4px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"],
+        input[type="email"],
+        textarea,
+        select {
+            display: block;
+            width: 100%;
+            padding: 9px 12px;
+            font-family: inherit;
+            font-size: 14px;
+            color: var(--color-text-primary);
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+            line-height: 1.5;
+        }
+
         input:focus, textarea:focus, select:focus {
             outline: none;
-            border-color: #00d9ff;
+            border-color: var(--color-accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
         }
-        
-        button {
-            background: linear-gradient(135deg, #00d9ff 0%, #00a8cc 100%);
-            color: #000;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
+
+        input::placeholder, textarea::placeholder {
+            color: var(--color-text-tertiary);
         }
-        
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 20px rgba(0,217,255,0.3);
-        }
-        
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        button.danger {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
-            color: #fff;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 30px;
-        }
-        
-        @media (max-width: 768px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        
-        .card h2 {
-            font-size: 18px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .form-group {
-            margin-bottom: 16px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 13px;
-            color: rgba(255,255,255,0.7);
-        }
-        
+
         textarea {
             resize: vertical;
-            min-height: 80px;
-            font-family: monospace;
-        }
-        
-        .vms-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        
-        .vm-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-            transition: all 0.3s ease;
-        }
-        
-        .vm-card:hover {
-            border-color: rgba(0,217,255,0.3);
-            transform: translateY(-2px);
-        }
-        
-        .vm-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-        
-        .vm-name {
-            font-size: 18px;
-            font-weight: 600;
-        }
-        
-        .vm-status {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        
-        .vm-status.running {
-            background: rgba(0,255,136,0.2);
-            color: #00ff88;
-        }
-        
-        .vm-status.shut off {
-            background: rgba(255,107,107,0.2);
-            color: #ff6b6b;
-        }
-        
-        .vm-status.unknown {
-            background: rgba(255,255,255,0.1);
-            color: #aaa;
-        }
-        
-        .vm-details {
+            min-height: 72px;
+            font-family: var(--font-mono);
             font-size: 13px;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 16px;
         }
-        
-        .vm-details div {
-            margin-bottom: 6px;
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%235c6370' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        /* ---- Layout ---- */
+        .container {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 28px 32px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 20px 16px;
+            }
+            .topnav {
+                padding: 0 16px;
+            }
+        }
+
+        /* ---- Card ---- */
+        .card {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--color-border-light);
             display: flex;
             align-items: center;
-            gap: 8px;
+            justify-content: space-between;
         }
-        
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+
+        .card-body {
+            padding: 22px;
+        }
+
+        /* ---- Tabs ---- */
+        .tab-bar {
+            display: flex;
+            gap: 2px;
+            border-bottom: 1px solid var(--color-border-light);
+            padding: 0 22px;
+        }
+
+        .tab-item {
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--color-text-tertiary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            transition: color 0.15s ease, border-color 0.15s ease;
+            user-select: none;
+        }
+
+        .tab-item:hover {
+            color: var(--color-text-secondary);
+        }
+
+        .tab-item.active {
+            color: var(--color-accent);
+            border-bottom-color: var(--color-accent);
+        }
+
+        /* ---- VM List ---- */
+        .vm-list {
+            padding: 12px 22px 22px;
+        }
+
+        .vm-item {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+
+        .vm-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .vm-item:first-child {
+            padding-top: 4px;
+        }
+
+        .vm-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .vm-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 4px;
+        }
+
+        .vm-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            font-size: 12px;
+            color: var(--color-text-tertiary);
+        }
+
+        .vm-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .vm-meta-label {
+            color: var(--color-text-tertiary);
+        }
+
+        .vm-meta-value {
+            color: var(--color-text-secondary);
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .vm-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            flex-shrink: 0;
+            margin-left: 16px;
+        }
+
         .vm-actions {
             display: flex;
-            gap: 10px;
+            gap: 6px;
         }
-        
-        .vm-actions button {
-            flex: 1;
-            padding: 8px 12px;
-            font-size: 13px;
+
+        /* ---- Status Badge ---- */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
         }
-        
-        /* Auth Pages */
-        .auth-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 40px;
+
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
         }
-        
-        .auth-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 16px;
-            padding: 40px;
-            border: 1px solid rgba(255,255,255,0.1);
-            text-align: center;
+
+        .badge-running {
+            background: var(--color-success-light);
+            color: var(--color-success);
         }
-        
-        .auth-card h2 {
-            font-size: 24px;
-            margin-bottom: 30px;
+
+        .badge-running .badge-dot {
+            background: var(--color-success);
         }
-        
-        .auth-card .form-group {
-            text-align: left;
+
+        .badge-stopped {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-tertiary);
         }
-        
-        .auth-card button {
+
+        .badge-stopped .badge-dot {
+            background: var(--color-text-tertiary);
+        }
+
+        .badge-unknown {
+            background: var(--color-warning-light);
+            color: var(--color-warning);
+        }
+
+        .badge-unknown .badge-dot {
+            background: var(--color-warning);
+        }
+
+        /* ---- Auth Pages ---- */
+        .auth-wrapper {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+            background: var(--color-bg-secondary);
+        }
+
+        .auth-box {
             width: 100%;
-            margin-top: 10px;
+            max-width: 400px;
         }
-        
-        .auth-switch {
-            margin-top: 20px;
-            font-size: 14px;
-            color: rgba(255,255,255,0.7);
-        }
-        
-        .auth-switch a {
-            color: #00d9ff;
-            cursor: pointer;
-            text-decoration: none;
-        }
-        
-        .auth-switch a:hover {
-            text-decoration: underline;
-        }
-        
-        .api-key-display {
-            background: rgba(0,0,0,0.3);
-            padding: 15px;
-            border-radius: 8px;
-            margin: 20px 0;
-            font-family: monospace;
-            word-break: break-all;
-            font-size: 12px;
-            color: #00ff88;
-        }
-        
-        .api-key-warning {
-            background: rgba(255,107,107,0.1);
-            border: 1px solid rgba(255,107,107,0.3);
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            color: #ff6b6b;
-            margin: 15px 0;
-        }
-        
-        .empty-state {
+
+        .auth-header {
             text-align: center;
-            padding: 60px 20px;
-            color: rgba(255,255,255,0.5);
+            margin-bottom: 28px;
         }
-        
-        .empty-state span {
-            font-size: 48px;
-            display: block;
+
+        .auth-header svg {
+            color: var(--color-accent);
             margin-bottom: 16px;
         }
-        
+
+        .auth-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--color-text-primary);
+            letter-spacing: -0.02em;
+            margin-bottom: 6px;
+        }
+
+        .auth-header p {
+            font-size: 14px;
+            color: var(--color-text-secondary);
+        }
+
+        .auth-card {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 18px;
+            font-size: 13px;
+            color: var(--color-text-tertiary);
+        }
+
+        .auth-footer a {
+            color: var(--color-accent);
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .auth-footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ---- API Key Display ---- */
+        .api-key-block {
+            background: var(--color-bg-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            font-family: var(--font-mono);
+            font-size: 13px;
+            word-break: break-all;
+            color: var(--color-text-primary);
+            margin: 16px 0;
+            line-height: 1.6;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        .alert-warning {
+            background: var(--color-warning-light);
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+
+        /* ---- Empty State ---- */
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+        }
+
+        .empty-state svg {
+            color: var(--color-text-tertiary);
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        .empty-state p {
+            color: var(--color-text-tertiary);
+            font-size: 14px;
+        }
+
+        /* ---- Loading Spinner ---- */
         .loading {
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 40px;
         }
-        
+
         .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top-color: #00d9ff;
+            width: 28px;
+            height: 28px;
+            border: 2.5px solid var(--color-border);
+            border-top-color: var(--color-accent);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
+            animation: spin 0.7s linear infinite;
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
+
+        /* ---- Toast ---- */
         .toast {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 16px 24px;
-            border-radius: 8px;
-            color: #fff;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
             font-weight: 500;
-            transform: translateY(100px);
+            transform: translateY(80px);
             opacity: 0;
-            transition: all 0.3s ease;
+            transition: transform 0.25s ease, opacity 0.25s ease;
             z-index: 1000;
+            box-shadow: var(--shadow-lg);
+            max-width: 400px;
         }
-        
+
         .toast.show {
             transform: translateY(0);
             opacity: 1;
         }
-        
+
         .toast.success {
-            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-            color: #000;
+            background: var(--color-success);
+            color: #fff;
         }
-        
+
         .toast.error {
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+            background: var(--color-danger);
+            color: #fff;
         }
-        
+
+        /* ---- Utilities ---- */
         .hidden {
             display: none !important;
         }
-        
-        .tabs {
-            display: flex;
-            gap: 4px;
-            margin-bottom: 20px;
-            background: rgba(255,255,255,0.05);
-            padding: 4px;
-            border-radius: 8px;
-            width: fit-content;
+
+        .text-mono {
+            font-family: var(--font-mono);
         }
-        
-        .tab {
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-        
-        .tab.active {
-            background: rgba(0,217,255,0.2);
-            color: #00d9ff;
-        }
+
+        .mt-2 { margin-top: 8px; }
+        .mt-4 { margin-top: 16px; }
+        .mb-2 { margin-bottom: 8px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header id="mainHeader" class="hidden">
-            <h1><span>☁️</span> VM Provisioner</h1>
-            <div class="user-info">
-                <span class="user-name" id="userName"></span>
-                <button class="btn-logout" onclick="logout()">Logout</button>
+
+    <!-- ============ Top Nav (shown on dashboard) ============ -->
+    <nav id="mainHeader" class="topnav hidden">
+        <div class="topnav-brand">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="8" rx="2"/>
+                <rect x="2" y="14" width="20" height="8" rx="2"/>
+                <circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/>
+            </svg>
+            VM Provisioner
+        </div>
+        <div class="topnav-right">
+            <span class="topnav-user" id="userName"></span>
+            <button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>
+        </div>
+    </nav>
+
+    <!-- ============ Login Page ============ -->
+    <div id="loginPage" class="auth-wrapper">
+        <div class="auth-box">
+            <div class="auth-header">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="8" rx="2"/>
+                    <rect x="2" y="14" width="20" height="8" rx="2"/>
+                    <circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/>
+                </svg>
+                <h1>VM Provisioner</h1>
+                <p>Sign in to manage your instances</p>
             </div>
-        </header>
-        
-        <!-- Login Page -->
-        <div id="loginPage" class="auth-container">
             <div class="auth-card">
-                <h2>🔐 Login</h2>
                 <form onsubmit="handleLogin(event)">
                     <div class="form-group">
-                        <label>Username</label>
-                        <input type="text" id="loginName" required>
+                        <label class="form-label" for="loginName">Username</label>
+                        <input type="text" id="loginName" placeholder="Enter your username" required>
                     </div>
                     <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="loginPassword" required>
+                        <label class="form-label" for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" placeholder="Enter your password" required>
                     </div>
-                    <button type="submit">Login</button>
+                    <button type="submit" class="btn btn-primary btn-full">Sign in</button>
                 </form>
-                <div class="auth-switch">
-                    Don't have an account? <a onclick="showSignup()">Sign up</a>
-                </div>
+            </div>
+            <div class="auth-footer">
+                Don't have an account? <a onclick="showSignup()">Create one</a>
             </div>
         </div>
-        
-        <!-- Signup Page -->
-        <div id="signupPage" class="auth-container hidden">
+    </div>
+
+    <!-- ============ Signup Page ============ -->
+    <div id="signupPage" class="auth-wrapper hidden">
+        <div class="auth-box">
+            <div class="auth-header">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="8" rx="2"/>
+                    <rect x="2" y="14" width="20" height="8" rx="2"/>
+                    <circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/>
+                </svg>
+                <h1>Create account</h1>
+                <p>Get started with VM Provisioner</p>
+            </div>
             <div class="auth-card">
-                <h2>🚀 Create Account</h2>
                 <form onsubmit="handleSignup(event)">
                     <div class="form-group">
-                        <label>Username</label>
-                        <input type="text" id="signupName" required>
+                        <label class="form-label" for="signupName">Username</label>
+                        <input type="text" id="signupName" placeholder="Choose a username" required>
                     </div>
                     <div class="form-group">
-                        <label>Password</label>
-                        <input type="password" id="signupPassword" required>
+                        <label class="form-label" for="signupPassword">Password</label>
+                        <input type="password" id="signupPassword" placeholder="Choose a password" required>
                     </div>
-                    <button type="submit">Sign Up</button>
+                    <button type="submit" class="btn btn-primary btn-full">Create account</button>
                 </form>
-                <div class="auth-switch">
-                    Already have an account? <a onclick="showLogin()">Login</a>
-                </div>
+            </div>
+            <div class="auth-footer">
+                Already have an account? <a onclick="showLogin()">Sign in</a>
             </div>
         </div>
-        
-        <!-- API Key Display (after signup) -->
-        <div id="apiKeyPage" class="auth-container hidden">
+    </div>
+
+    <!-- ============ API Key Display (after signup) ============ -->
+    <div id="apiKeyPage" class="auth-wrapper hidden">
+        <div class="auth-box">
+            <div class="auth-header">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                </svg>
+                <h1>Your API key</h1>
+                <p>Save this key securely. It will only be shown once.</p>
+            </div>
             <div class="auth-card">
-                <h2>🔑 Your API Key</h2>
-                <p>Your API key has been generated. Save it securely - you won't see it again!</p>
-                <div class="api-key-warning">
-                    ⚠️ Copy this key now. It won't be shown again!
+                <div class="alert alert-warning">
+                    Copy this key now and store it in a safe place. You will not be able to see it again after leaving this page.
                 </div>
-                <div class="api-key-display" id="newApiKey"></div>
-                <button onclick="saveApiKey()">Save & Continue</button>
+                <div class="api-key-block" id="newApiKey"></div>
+                <button class="btn btn-primary btn-full" onclick="saveApiKey()">Continue to dashboard</button>
             </div>
         </div>
-        
-        <!-- Dashboard -->
-        <div id="dashboard" class="hidden">
-            <div class="grid">
+    </div>
+
+    <!-- ============ Dashboard ============ -->
+    <div id="dashboard" class="hidden">
+        <div class="container">
+            <div class="dashboard-grid">
+
                 <!-- Create VM Form -->
                 <div class="card">
-                    <h2>🚀 Create Instance</h2>
-                    <form id="createForm" onsubmit="createVM(event)">
-                        <div class="form-group">
-                            <label>Instance Name</label>
-                            <input type="text" id="vmName" placeholder="my-vm" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Operating System</label>
-                            <select id="imageType" required>
-                                <option value="">Loading images...</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>SSH Public Key</label>
-                            <textarea id="sshKey" placeholder="ssh-rsa AAAAB3..." required></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Memory (MB)</label>
-                            <input type="number" id="memoryMb" value="512" min="256" max="4096" step="256">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>vCPUs</label>
-                            <input type="number" id="vcpus" value="1" min="1" max="4">
-                        </div>
-                        
-                        <button type="submit" id="createBtn">Launch Instance</button>
-                    </form>
+                    <div class="card-header">
+                        <span class="card-title">Create instance</span>
+                    </div>
+                    <div class="card-body">
+                        <form id="createForm" onsubmit="createVM(event)">
+                            <div class="form-group">
+                                <label class="form-label" for="vmName">Instance name</label>
+                                <input type="text" id="vmName" placeholder="e.g. web-server-01" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="imageType">Operating system</label>
+                                <select id="imageType" required>
+                                    <option value="">Loading images...</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label" for="sshKey">SSH public key</label>
+                                <textarea id="sshKey" placeholder="ssh-rsa AAAAB3NzaC1yc2E..." required></textarea>
+                                <div class="form-hint">Paste your public key for SSH access to the instance.</div>
+                            </div>
+
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                                <div class="form-group">
+                                    <label class="form-label" for="memoryMb">Memory (MB)</label>
+                                    <input type="number" id="memoryMb" value="512" min="256" max="4096" step="256">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="vcpus">vCPUs</label>
+                                    <input type="number" id="vcpus" value="1" min="1" max="4">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-full" id="createBtn">Launch instance</button>
+                        </form>
+                    </div>
                 </div>
-                
-                <!-- VMs List -->
+
+                <!-- Instances List -->
                 <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h2>📋 Your Instances</h2>
-                        <button onclick="loadVMs()" style="padding: 8px 16px; font-size: 13px;">Refresh</button>
+                    <div class="card-header">
+                        <span class="card-title">Instances</span>
+                        <button class="btn btn-secondary btn-sm" onclick="loadVMs()">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                            Refresh
+                        </button>
                     </div>
-                    
-                    <div class="tabs">
-                        <div class="tab active" onclick="switchTab('all')">All</div>
-                        <div class="tab" onclick="switchTab('running')">Running</div>
-                        <div class="tab" onclick="switchTab('shut off')">Stopped</div>
+
+                    <div class="tab-bar">
+                        <div class="tab-item active" onclick="switchTab('all', this)">All</div>
+                        <div class="tab-item" onclick="switchTab('running', this)">Running</div>
+                        <div class="tab-item" onclick="switchTab('shut off', this)">Stopped</div>
                     </div>
-                    
+
                     <div id="vmsContainer">
                         <div class="loading">
                             <div class="spinner"></div>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
-    
+
     <div id="toast" class="toast"></div>
-    
+
     <script>
         let currentTab = 'all';
         let apiKey = '';
         let userName = '';
-        
+
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadImages();
-            
-            // Check for stored session
+
             apiKey = localStorage.getItem('apiKey');
             userName = localStorage.getItem('userName');
-            
+
             if (apiKey && userName) {
                 showDashboard();
             } else {
                 showLogin();
             }
         });
-        
-        // Show pages
+
+        // ---- Page Navigation ----
+        function hideAll() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('signupPage').classList.add('hidden');
+            document.getElementById('apiKeyPage').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('mainHeader').classList.add('hidden');
+        }
+
         function showLogin() {
+            hideAll();
             document.getElementById('loginPage').classList.remove('hidden');
-            document.getElementById('signupPage').classList.add('hidden');
-            document.getElementById('apiKeyPage').classList.add('hidden');
-            document.getElementById('dashboard').classList.add('hidden');
-            document.getElementById('mainHeader').classList.add('hidden');
         }
-        
+
         function showSignup() {
-            document.getElementById('loginPage').classList.add('hidden');
+            hideAll();
             document.getElementById('signupPage').classList.remove('hidden');
-            document.getElementById('apiKeyPage').classList.add('hidden');
-            document.getElementById('dashboard').classList.add('hidden');
-            document.getElementById('mainHeader').classList.add('hidden');
         }
-        
+
         function showApiKey(key) {
-            document.getElementById('loginPage').classList.add('hidden');
-            document.getElementById('signupPage').classList.add('hidden');
+            hideAll();
             document.getElementById('apiKeyPage').classList.remove('hidden');
-            document.getElementById('dashboard').classList.add('hidden');
-            document.getElementById('mainHeader').classList.add('hidden');
             document.getElementById('newApiKey').textContent = key;
         }
-        
+
         function showDashboard() {
-            document.getElementById('loginPage').classList.add('hidden');
-            document.getElementById('signupPage').classList.add('hidden');
-            document.getElementById('apiKeyPage').classList.add('hidden');
+            hideAll();
             document.getElementById('dashboard').classList.remove('hidden');
             document.getElementById('mainHeader').classList.remove('hidden');
             document.getElementById('userName').textContent = userName;
-            
             loadVMs();
         }
-        
-        // Auth handlers
+
+        // ---- Auth Handlers ----
         async function handleLogin(event) {
             event.preventDefault();
-            
+
             const name = document.getElementById('loginName').value;
             const password = document.getElementById('loginPassword').value;
-            
+
             try {
                 const response = await fetch('/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, password })
                 });
-                
+
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.detail || 'Login failed');
                 }
-                
+
                 const data = await response.json();
-                
-                // Save session
+
                 localStorage.setItem('apiKey', data.api_key);
                 localStorage.setItem('userName', data.name);
                 apiKey = data.api_key;
                 userName = data.name;
-                
+
                 showDashboard();
-                showToast('Welcome back, ' + data.name + '!', 'success');
-                
+                showToast('Welcome back, ' + data.name, 'success');
+
             } catch (error) {
                 showToast(error.message, 'error');
             }
         }
-        
+
         async function handleSignup(event) {
             event.preventDefault();
-            
+
             const name = document.getElementById('signupName').value;
             const password = document.getElementById('signupPassword').value;
-            
+
             try {
                 const response = await fetch('/auth/signup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, password })
                 });
-                
+
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.detail || 'Signup failed');
                 }
-                
+
                 const data = await response.json();
-                
-                // Show API key
                 showApiKey(data.api_key);
-                
+
             } catch (error) {
                 showToast(error.message, 'error');
             }
         }
-        
+
         function saveApiKey() {
             const key = document.getElementById('newApiKey').textContent;
             localStorage.setItem('apiKey', key);
             localStorage.setItem('userName', document.getElementById('signupName').value);
             apiKey = key;
             userName = document.getElementById('signupName').value;
-            
+
             showDashboard();
-            showToast('Account created successfully!', 'success');
+            showToast('Account created successfully', 'success');
         }
-        
+
         function logout() {
             localStorage.removeItem('apiKey');
             localStorage.removeItem('userName');
             apiKey = '';
             userName = '';
-            
-            // Clear form
+
             document.getElementById('loginName').value = '';
             document.getElementById('loginPassword').value = '';
             document.getElementById('signupName').value = '';
             document.getElementById('signupPassword').value = '';
-            
+
             showLogin();
         }
-        
-        // Load images from API
+
+        // ---- Load Images ----
         async function loadImages() {
             try {
                 const response = await fetch('/images');
                 const images = await response.json();
-                
+
                 const select = document.getElementById('imageType');
                 select.innerHTML = '';
-                
+
                 for (const [key, value] of Object.entries(images)) {
                     const option = document.createElement('option');
                     option.value = key;
@@ -670,97 +941,112 @@
                     select.appendChild(option);
                 }
             } catch (error) {
-                showToast('Failed to load images', 'error');
+                // Silently fail -- images will load when API is available
             }
         }
-        
-        // Load VMs from API
+
+        // ---- Load VMs ----
         async function loadVMs() {
             if (!apiKey) {
                 showLogin();
                 return;
             }
-            
+
             const container = document.getElementById('vmsContainer');
             container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-            
+
             try {
                 const response = await fetch('/vms', {
                     headers: { 'X-API-Key': apiKey }
                 });
-                
+
                 if (!response.ok) {
                     if (response.status === 401) {
                         logout();
-                        showToast('Session expired', 'error');
+                        showToast('Session expired. Please sign in again.', 'error');
                         return;
                     }
-                    throw new Error('Failed to load VMs');
+                    throw new Error('Failed to load instances');
                 }
-                
+
                 const data = await response.json();
                 renderVMs(data.vms || []);
             } catch (error) {
-                container.innerHTML = `<div class="empty-state">
-                    <span>⚠️</span>
-                    <p>${error.message}</p>
-                </div>`;
+                container.innerHTML = '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><p>' + error.message + '</p></div>';
             }
         }
-        
-        // Render VMs
+
+        // ---- Render VMs ----
         function renderVMs(vms) {
             const container = document.getElementById('vmsContainer');
-            
-            // Filter by tab
+
             const filtered = currentTab === 'all' ? vms : vms.filter(v => v.status.toLowerCase() === currentTab);
-            
+
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="empty-state">
-                    <span>☁️</span>
-                    <p>No instances found</p>
-                </div>`;
+                container.innerHTML = '<div class="empty-state"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1"/><circle cx="6" cy="18" r="1"/></svg><p>No instances found</p></div>';
                 return;
             }
-            
-            container.innerHTML = `<div class="vms-grid">
-                ${filtered.map(vm => `
-                    <div class="vm-card">
-                        <div class="vm-header">
-                            <div class="vm-name">${vm.name}</div>
-                            <div class="vm-status ${vm.status.toLowerCase()}">${vm.status}</div>
-                        </div>
-                        <div class="vm-details">
-                            <div>🆔 ID: ${vm.id.substring(0, 8)}...</div>
-                            <div>🌐 IP: ${vm.ip || 'N/A'}</div>
-                            <div>🔌 Port: ${vm.port || 'N/A'}</div>
-                            <div>📅 Created: ${new Date(vm.created_at).toLocaleDateString()}</div>
-                        </div>
-                        <div class="vm-actions">
-                            <button onclick="copySSH('${vm.ip}', '${vm.port}')">Copy SSH</button>
-                            <button class="danger" onclick="deleteVM('${vm.id}')">Delete</button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>`;
+
+            container.innerHTML = '<div class="vm-list">' + filtered.map(vm => {
+                const status = vm.status.toLowerCase();
+                let badgeClass = 'badge-unknown';
+                let badgeLabel = vm.status;
+                if (status === 'running') {
+                    badgeClass = 'badge-running';
+                    badgeLabel = 'Running';
+                } else if (status === 'shut off') {
+                    badgeClass = 'badge-stopped';
+                    badgeLabel = 'Stopped';
+                }
+
+                const shortId = vm.id.substring(0, 8);
+                const ip = vm.ip || '—';
+                const port = vm.port || '—';
+                const created = new Date(vm.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+                return '<div class="vm-item">' +
+                    '<div class="vm-info">' +
+                        '<div class="vm-name">' + escapeHtml(vm.name) + '</div>' +
+                        '<div class="vm-meta">' +
+                            '<span class="vm-meta-item"><span class="vm-meta-label">ID</span> <span class="vm-meta-value">' + shortId + '</span></span>' +
+                            '<span class="vm-meta-item"><span class="vm-meta-label">IP</span> <span class="vm-meta-value">' + ip + '</span></span>' +
+                            '<span class="vm-meta-item"><span class="vm-meta-label">Port</span> <span class="vm-meta-value">' + port + '</span></span>' +
+                            '<span class="vm-meta-item"><span class="vm-meta-label">Created</span> <span class="vm-meta-value">' + created + '</span></span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="vm-right">' +
+                        '<span class="badge ' + badgeClass + '"><span class="badge-dot"></span>' + badgeLabel + '</span>' +
+                        '<div class="vm-actions">' +
+                            '<button class="btn btn-secondary btn-sm" onclick="copySSH(\'' + vm.ip + '\', \'' + vm.port + '\')">Copy SSH</button>' +
+                            '<button class="btn btn-danger btn-sm" onclick="deleteVM(\'' + vm.id + '\')">Delete</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('') + '</div>';
         }
-        
-        // Switch tab
-        function switchTab(tab) {
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ---- Tab Switching ----
+        function switchTab(tab, el) {
             currentTab = tab;
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            event.target.classList.add('active');
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
             loadVMs();
         }
-        
-        // Create VM
+
+        // ---- Create VM ----
         async function createVM(event) {
             event.preventDefault();
-            
+
             const btn = document.getElementById('createBtn');
             btn.disabled = true;
             btn.textContent = 'Creating...';
-            
+
             const data = {
                 name: document.getElementById('vmName').value,
                 image_type: document.getElementById('imageType').value,
@@ -768,7 +1054,7 @@
                 memory_mb: parseInt(document.getElementById('memoryMb').value),
                 vcpus: parseInt(document.getElementById('vcpus').value)
             };
-            
+
             try {
                 const response = await fetch('/vms', {
                     method: 'POST',
@@ -778,71 +1064,69 @@
                     },
                     body: JSON.stringify(data)
                 });
-                
+
                 if (!response.ok) {
                     const err = await response.json();
-                    throw new Error(err.detail || 'Failed to create VM');
+                    throw new Error(err.detail || 'Failed to create instance');
                 }
-                
+
                 const result = await response.json();
-                showToast(`VM "${result.name}" created successfully!`, 'success');
-                
-                // Reset form
+                showToast('Instance "' + result.name + '" created', 'success');
+
                 document.getElementById('vmName').value = '';
                 document.getElementById('sshKey').value = '';
-                
-                // Reload VMs
+
                 loadVMs();
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Launch Instance';
+                btn.textContent = 'Launch instance';
             }
         }
-        
-        // Delete VM
+
+        // ---- Delete VM ----
         async function deleteVM(vmId) {
-            if (!confirm('Are you sure you want to delete this instance? This cannot be undone.')) {
+            if (!confirm('Are you sure you want to delete this instance? This action cannot be undone.')) {
                 return;
             }
-            
+
             try {
-                const response = await fetch(`/vms/${vmId}`, {
+                const response = await fetch('/vms/' + vmId, {
                     method: 'DELETE',
                     headers: { 'X-API-Key': apiKey }
                 });
-                
+
                 if (!response.ok) {
-                    throw new Error('Failed to delete VM');
+                    throw new Error('Failed to delete instance');
                 }
-                
-                showToast('VM deleted successfully', 'success');
+
+                showToast('Instance deleted', 'success');
                 loadVMs();
             } catch (error) {
                 showToast(error.message, 'error');
             }
         }
-        
-        // Copy SSH command
+
+        // ---- Copy SSH Command ----
         function copySSH(ip, port) {
-            if (!ip || !port) {
-                showToast('IP or port not available', 'error');
+            if (!ip || ip === 'null' || !port || port === 'null') {
+                showToast('Connection info not available yet', 'error');
                 return;
             }
-            
-            const sshCommand = `ssh -p ${port} user@${ip}`;
+
+            const sshCommand = 'ssh -p ' + port + ' user@' + ip;
             navigator.clipboard.writeText(sshCommand).then(() => {
-                showToast('SSH command copied to clipboard!', 'success');
+                showToast('SSH command copied to clipboard', 'success');
             });
         }
-        
-        // Show toast notification
+
+        // ---- Toast Notification ----
         function showToast(message, type) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
-            toast.className = `toast ${type} show`;
-            
+            toast.className = 'toast ' + type + ' show';
+
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
