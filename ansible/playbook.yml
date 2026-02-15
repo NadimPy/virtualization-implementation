@@ -37,6 +37,8 @@
           - build-essential
           - pkg-config
           - libvirt-dev
+          - libvirt-daemon-system
+          - qemu-kvm
           - python3-dev
           - python3-pip
           - git
@@ -49,11 +51,19 @@
           - python3-certbot-nginx
         state: present
 
+    - name: Enable and start libvirtd
+      ansible.builtin.systemd:
+        name: libvirtd
+        enabled: true
+        state: started
+
     - name: Create application user
       ansible.builtin.user:
         name: "{{ app_user }}"
         shell: /bin/bash
         create_home: true
+        groups: libvirt
+        append: true
         comment: "VM Provisioner Service Account"
 
     - name: Create data directories
