@@ -57,6 +57,20 @@
         enabled: true
         state: started
 
+    - name: Activate libvirt default network
+      ansible.builtin.command:
+        cmd: virsh net-start default
+      register: net_start
+      failed_when: false
+      changed_when: "'started' in net_start.stdout"
+
+    - name: Set libvirt default network to autostart
+      ansible.builtin.command:
+        cmd: virsh net-autostart default
+      register: net_autostart
+      failed_when: false
+      changed_when: "'marked as autostarted' in net_autostart.stdout"
+
     - name: Create application user
       ansible.builtin.user:
         name: "{{ app_user }}"
