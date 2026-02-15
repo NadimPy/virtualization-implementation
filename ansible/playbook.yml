@@ -2,8 +2,7 @@
 # Ansible playbook to provision VM Provisioner server
 # Usage: ansible-playbook -i inventory.ini playbook.yml
 #
-# For SSL, set enable_ssl: true and provide your domain:
-#   ansible-playbook -i inventory.ini playbook.yml -e "enable_ssl=true domain=vm.example.com"
+# SSL is enabled by default with domain: beirut-central1.nadimchendy.com
 
 - name: Provision VM Provisioner Server
   hosts: vm_provisioner
@@ -18,9 +17,10 @@
     # Ports for VM allocation
     start_port: 2222
     end_port: 2322
-    # SSL settings (set enable_ssl=true and domain to enable)
-    enable_ssl: false
-    domain: ""
+    # SSL settings (enabled by default)
+    enable_ssl: true
+    domain: beirut-central1.nadimchendy.com
+    ssl_email: zadzack409@gmail.com
     app_port: 8000
 
   tasks:
@@ -43,16 +43,10 @@
           - jq
           - iptables
           - qemu-utils
-        state: present
-
-    - name: Install SSL packages
-      ansible.builtin.apt:
-        name:
           - nginx
           - certbot
           - python3-certbot-nginx
         state: present
-      when: enable_ssl | bool
 
     - name: Create application user
       ansible.builtin.user:
@@ -107,25 +101,16 @@
         group: "{{ app_user }}"
         recurse: true
 
-    - name: Create Python virtual environment
-      ansible.builtin.pip:
-        name: uv
-        virtualenv: "{{ app_dir }}/.venv"
-        virtualenv_command: uv venv
-        state: present
-        executable: pip3
+    - name: Create Python virtual environment with uv
+      ansible.builtin.command:
+        cmd: uv venv
+        creates: "{{ app_dir }}/.venv"
+        chdir: "{{ app_dir }}"
 
-    - name: Install Python dependencies
-      community.general.pip:
-        pip_path: "{{ app_dir }}/.venv/bin/pip"
-        name:
-          - fastapi
-          - uvicorn
-          - pycdlib
-          - jinja2
-          - python-dotenv
-          - libvirt-python
-          - scrypt
+    - name: Install Python dependencies using uv
+      ansible.builtin.command:
+        cmd: uv add fastapi uvicorn pycdlib jinja2 python-dotenv libvirt-python scrypt
+        chdir: "{{ app_dir }}"
 
     - name: Create systemd service file
       ansible.builtin.copy:
@@ -143,7 +128,7 @@
           Environment="PATH={{ app_dir }}/.venv/bin:/usr/local/bin:/usr/bin:/bin"
           Environment="PYTHONPATH={{ app_dir }}"
           Environment="DATA_DIR={{ data_dir }}"
-          ExecStart={{ app_dir }}/.venv/bin/python main.py
+          ExecStart={{ app_dir }}/.venv/bin/uv run uvicorn main:app --host 0.0.0.0 --port {{ app_port }} --proxy-headers --forwarded-allow-ips=*
           Restart=always
           RestartSec=10
 
@@ -174,7 +159,7 @@
       ignore_errors: true
 
     # SSL Configuration Tasks
-    - name: Create nginx config for HTTP (before certbot)
+    - name: Create nginx config for HTTP
       ansible.builtin.copy:
         dest: /etc/nginx/sites-available/vm-provisioner
         content: |
@@ -191,33 +176,33 @@
               }
           }
         mode: '0644'
-      when: enable_ssl | bool and domain | length > 0
 
     - name: Enable nginx site
       ansible.builtin.file:
         src: /etc/nginx/sites-available/vm-provisioner
         dest: /etc/nginx/sites-enabled/vm-provisioner
         state: link
-      when: enable_ssl | bool and domain | length > 0
       notify: Reload nginx
 
     - name: Remove default nginx site
       ansible.builtin.file:
         path: /etc/nginx/sites-enabled/default
         state: absent
-      when: enable_ssl | bool and domain | length > 0
 
     - name: Test nginx config
       ansible.builtin.command:
         cmd: nginx -t
-      when: enable_ssl | bool and domain | length > 0
       register: nginx_test
       changed_when: false
 
+    - name: Reload nginx for initial config
+      ansible.builtin.systemd:
+        name: nginx
+        state: reloaded
+
     - name: Get SSL certificate with Certbot
       ansible.builtin.command:
-        cmd: certbot --nginx -d {{ domain }} --non-interactive --agree-tos --email admin@{{ domain }}
-      when: enable_ssl | bool and domain | length > 0
+        cmd: certbot --nginx -d {{ domain }} --non-interactive --agree-tos --email {{ ssl_email }}
       register: certbot_result
       failed_when: false
 
@@ -225,16 +210,14 @@
       ansible.builtin.systemd:
         name: nginx
         state: reloaded
-      when: enable_ssl | bool and domain | length > 0
 
-    - name: Allow nginx through firewall
+    - name: Allow HTTPS through firewall
       ansible.builtin.iptables:
         chain: INPUT
         protocol: tcp
         destination_port: 443
         jump: ACCEPT
         comment: "Allow HTTPS"
-      when: enable_ssl | bool and domain | length > 0
 
     - name: Allow HTTP through firewall
       ansible.builtin.iptables:
@@ -243,9 +226,8 @@
         destination_port: 80
         jump: ACCEPT
         comment: "Allow HTTP"
-      when: enable_ssl | bool and domain | length > 0
 
-    - name: Download Debian 12 base image (optional)
+    - name: Download Debian 12 base image
       ansible.builtin.get_url:
         url: https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2
         dest: "{{ data_dir }}/images/debian-12-template.qcow2"
@@ -253,7 +235,24 @@
         group: "{{ app_user }}"
         mode: '0644'
       ignore_errors: true
-      register: debian_image_download
+
+    - name: Download Rocky Linux 9 base image
+      ansible.builtin.get_url:
+        url: https://download.rockylinux.org/pub/rocky/9/BaseOS/x86_64/images/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
+        dest: "{{ data_dir }}/images/rocky-9-template.qcow2"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+      ignore_errors: true
+
+    - name: Download Alpine Linux base image
+      ansible.builtin.get_url:
+        url: https://dl.alpinelinux.org/alpine/v3.19/releases/x86_64/alpine-virt-3.19.0-x86_64.qcow2
+        dest: "{{ data_dir }}/images/alpine-template.qcow2"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+      ignore_errors: true
 
     - name: Display service status
       ansible.builtin.service_facts:
@@ -270,11 +269,7 @@
           Application: {{ app_dir }}
           Data directory: {{ data_dir }}
           
-          {% if enable_ssl | bool and domain | length > 0 %}
           🌐 HTTPS: https://{{ domain }}
-          {% else %}
-          🌐 HTTP: http://{{ ansible_host }}
-          {% endif %}
           
           ==================================================================
           Useful commands:

@@ -26,10 +26,10 @@ DEFAULT_VCPUS = int(os.getenv("DEFAULT_VCPUS", "1"))
 DEFAULT_DISK_GB = int(os.getenv("DEFAULT_DISK_GB", "10"))
 
 # VM Resource Limits
-MIN_MEMORY_MB = int(os.getenv("MIN_MEMORY_MB", "10"))
-MAX_MEMORY_MB = int(os.getenv("MAX_MEMORY_MB", "10"))
-MIN_VCPUS = int(os.getenv("MIN_VCPUS", "10"))
-MAX_VCPUS = int(os.getenv("MAX_VCPUS", "10"))
+MIN_MEMORY_MB = int(os.getenv("MIN_MEMORY_MB", "256"))
+MAX_MEMORY_MB = int(os.getenv("MAX_MEMORY_MB", "4096"))
+MIN_VCPUS = int(os.getenv("MIN_VCPUS", "1"))
+MAX_VCPUS = int(os.getenv("MAX_VCPUS", "4"))
 
 # Network
 START_PORT = int(os.getenv("START_PORT", "2222"))
