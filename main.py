@@ -242,6 +242,7 @@ async def create_vm(
 def list_vms(user: dict = Depends(get_current_user)):
     """List all VMs for current user."""
     vms = list_vms_by_owner(user["id"])
+    server_ip = os.getenv("SERVER_PUBLIC_IP", "127.0.0.1")
     
     result = []
     for vm in vms:
@@ -250,16 +251,21 @@ def list_vms(user: dict = Depends(get_current_user)):
         except Exception as e:
             status = "unknown"
         
+        # Determine username from image_type if stored, default to "debian"
+        image_type = vm.get("image_type", "debian-12")
+        username = IMAGES.get(image_type, {}).get("username", "debian")
+        
         result.append({
             "id": vm["id"],
             "name": vm["name"],
             "status": status,
             "ip": vm.get("ip"),
             "port": vm["host_port"],
+            "username": username,
             "created_at": vm["created_at"]
         })
     
-    return {"vms": result}
+    return {"vms": result, "server_ip": server_ip}
 
 
 @app.get("/vms/{vm_id}")
