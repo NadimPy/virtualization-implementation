@@ -17,7 +17,8 @@ def render_template(template_name: str, variables: dict) -> str:
     template = env.get_template(template_name)
     return template.render(**variables)
 
-def create_config_iso(vm_id: str, name: str, image_type: str, ssh_key: str) -> Path:
+def create_config_iso(vm_id: str, name: str, image_type: str, ssh_key: str,
+                      mac_address: str = "") -> Path:
     """
     Generate cloud-init ISO for a VM.
     
@@ -26,6 +27,7 @@ def create_config_iso(vm_id: str, name: str, image_type: str, ssh_key: str) -> P
         name: Hostname for the VM
         image_type: Key from IMAGES dict (debian-12, rocky-9, alpine)
         ssh_key: SSH public key to inject
+        mac_address: MAC address of the VM's network interface
     
     Returns:
         Path to generated ISO file
@@ -45,7 +47,9 @@ def create_config_iso(vm_id: str, name: str, image_type: str, ssh_key: str) -> P
         "name": name
     })
     
-    network_config = render_template("network-config.yaml.j2", {})
+    network_config = render_template("network-config.yaml.j2", {
+        "mac_address": mac_address,
+    })
     
     # Ensure output directory exists
     CLOUD_INIT_DIR.mkdir(parents=True, exist_ok=True)

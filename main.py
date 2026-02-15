@@ -42,7 +42,8 @@ from network import (
     add_port_forward, 
     remove_port_forward,
     poll_vm_ip,
-    restore_port_forwards
+    restore_port_forwards,
+    generate_mac_address
 )
 
 import uuid
@@ -186,8 +187,10 @@ async def create_vm(
         # 1. Allocate port
         host_port = allocate_port()
         
-        # 2. Create cloud-init ISO
-        iso_path = str(create_config_iso(vm_id, name, image_type, ssh_key))
+        # 2. Create cloud-init ISO (include MAC for network-config)
+        mac_address = generate_mac_address(vm_id)
+        iso_path = str(create_config_iso(vm_id, name, image_type, ssh_key,
+                                         mac_address=mac_address))
         
         # 3. Clone disk image (blocking IO, run in thread)
         loop = asyncio.get_event_loop()

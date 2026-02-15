@@ -1,6 +1,7 @@
-version: 2
-ethernets:
-  id0:
-    match:
-      name: "e*"
-    dhcp4: true
+version: 1
+config:
+  - type: physical
+    name: id0
+    mac_address: "{{ mac_address }}"
+    subnets:
+      - type: dhcp4

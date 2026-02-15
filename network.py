@@ -163,26 +163,6 @@ def restore_port_forwards(vms: list[dict]) -> int:
     return restored
 
 
-def get_vm_ip_from_leases(mac_address: str, timeout: int = 30) -> str | None:
-    """
-    Get VM IP from libvirt's dnsmasq leases file.
-    Fallback if qemu-guest-agent fails.
-    """
-    leases_file = Path(f"/var/lib/libvirt/dnsmasq/{VM_NETWORK}.leases")
-    
-    for _ in range(timeout):
-        if leases_file.exists():
-            content = leases_file.read_text()
-            for line in content.strip().split("\n"):
-                parts = line.split()
-                if len(parts) >= 5 and parts[1].lower() == mac_address.lower():
-                    return parts[2]  # IP address
-        
-        time.sleep(1)
-    
-    return None
-
-
 def _suppress_libvirt_errors():
     """
     Install a no-op libvirt error handler to suppress stderr spam.
@@ -222,21 +202,72 @@ def _restore_libvirt_errors():
             libvirt.registerErrorHandler(None, None)
 
 
+def _get_mac_from_domain_xml(dom) -> str | None:
+    """Extract the MAC address from a libvirt domain's XML definition."""
+    import xml.etree.ElementTree as ET
+    try:
+        xml_str = dom.XMLDesc(0)
+        root = ET.fromstring(xml_str)
+        mac_elem = root.find(".//interface/mac")
+        if mac_elem is not None:
+            return mac_elem.get("address")
+    except Exception:
+        pass
+    return None
+
+
+def _get_ip_from_arp(mac_address: str) -> str | None:
+    """
+    Check the host's ARP table for the VM's MAC address.
+    This works even if dnsmasq hasn't recorded the lease yet —
+    the VM just needs to have sent any packet on the network.
+    """
+    try:
+        result = subprocess.run(
+            ["ip", "neigh", "show"],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.strip().split("\n"):
+            if mac_address.lower() in line.lower():
+                parts = line.split()
+                if parts and not parts[0].startswith("127."):
+                    return parts[0]
+    except Exception:
+        pass
+    return None
+
+
+def _get_ip_from_leases_file_once(mac_address: str) -> str | None:
+    """
+    Single (non-blocking) check of the dnsmasq leases file.
+    """
+    leases_file = Path(f"/var/lib/libvirt/dnsmasq/{VM_NETWORK}.leases")
+    try:
+        if leases_file.exists():
+            content = leases_file.read_text()
+            for line in content.strip().split("\n"):
+                parts = line.split()
+                if len(parts) >= 3 and parts[1].lower() == mac_address.lower():
+                    return parts[2]
+    except Exception:
+        pass
+    return None
+
+
 def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 120) -> str:
     """
     Poll for VM IP address using multiple methods.
     
-    Strategy:
-      - Wait a few seconds for the VM to boot before polling.
-      - Primarily use DHCP leases (works without a guest agent).
-      - Try the guest agent only after an initial grace period.
-      - Fall back to reading dnsmasq leases file on disk.
+    Strategy — every 2 seconds, try in order:
+      1. DHCP leases via libvirt API (most reliable, no agent needed)
+      2. Direct dnsmasq leases file (catches cases the API misses)
+      3. Host ARP table (works even before DHCP completes)
+      4. QEMU guest agent (only after 30 s grace period)
     
     Args:
         libvirt_conn: libvirt connection object
         vm_uuid: Libvirt UUID string
-        timeout: Seconds to wait for IP (default raised to 120 for
-                 slower-booting images like Rocky Linux)
+        timeout: Seconds to wait for IP (default 120 for slower images)
     
     Returns:
         VM's internal IP address (e.g., 192.168.122.45)
@@ -245,9 +276,14 @@ def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 120) -> str:
         TimeoutError: If IP not available within timeout
     """
     dom = libvirt_conn.lookupByUUIDString(vm_uuid)
-    mac_address = None
     poll_interval = 2
     max_attempts = timeout // poll_interval
+    
+    # Get the MAC address from the domain XML — we always know it because
+    # we generate it deterministically.  This lets us check dnsmasq lease
+    # files and ARP tables from the very first poll.
+    mac_address = _get_mac_from_domain_xml(dom) or generate_mac_address(vm_uuid)
+    logger.info(f"Polling for IP of VM {vm_uuid} (MAC {mac_address})")
     
     # Seconds before we start trying the guest agent (let cloud-init install it)
     agent_grace_seconds = 30
@@ -266,8 +302,6 @@ def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 120) -> str:
                     libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE
                 )
                 for iface_name, iface_data in ifaces.items():
-                    if mac_address is None and iface_data.get("hwaddr"):
-                        mac_address = iface_data["hwaddr"]
                     for addr in iface_data.get("addrs", []):
                         ip = addr.get("addr")
                         if ip and not ip.startswith("127."):
@@ -276,7 +310,21 @@ def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 120) -> str:
             except libvirt.libvirtError:
                 pass
             
-            # Method 2: QEMU guest agent — only try after the grace period
+            # Method 2: Direct dnsmasq leases file check (in main loop, not
+            # just as a final fallback — catches races where the API lags)
+            ip = _get_ip_from_leases_file_once(mac_address)
+            if ip:
+                logger.info(f"Found IP {ip} for VM {vm_uuid} via leases file")
+                return ip
+            
+            # Method 3: Host ARP table — the VM may have sent an ARP
+            # broadcast even before DHCP completes
+            ip = _get_ip_from_arp(mac_address)
+            if ip:
+                logger.info(f"Found IP {ip} for VM {vm_uuid} via ARP table")
+                return ip
+            
+            # Method 4: QEMU guest agent — only try after the grace period
             # so we don't spam errors while cloud-init is still installing it.
             if elapsed >= agent_grace_seconds:
                 try:
@@ -302,13 +350,6 @@ def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 120) -> str:
                 )
             
             time.sleep(poll_interval)
-        
-        # Method 3: Fall back to reading dnsmasq leases file directly
-        if mac_address:
-            ip = get_vm_ip_from_leases(mac_address, timeout=15)
-            if ip:
-                logger.info(f"Found IP {ip} for VM {vm_uuid} via leases file")
-                return ip
         
         raise TimeoutError(f"Could not get IP for VM {vm_uuid} within {timeout}s")
     
