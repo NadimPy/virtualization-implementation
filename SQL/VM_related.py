@@ -100,3 +100,12 @@ def get_vm_by_id_for_update(vm_id: str, owner_id: str) -> VMRecord | None:
         ).fetchone()
         return dict(row) if row else None
 
+
+def list_all_vms() -> list[VMRecord]:
+    """List all VMs across all owners (for startup restoration)."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM vms ORDER BY created_at ASC"
+        ).fetchall()
+        return [dict(row) for row in rows]
+

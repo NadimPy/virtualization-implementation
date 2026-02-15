@@ -116,6 +116,46 @@ def remove_port_forward(host_port: int, vm_ip: str) -> None:
     logger.info(f"Removed port forward: host:{host_port} -> {vm_ip}:22")
 
 
+def restore_port_forwards(vms: list[dict]) -> int:
+    """
+    Re-create iptables port-forward rules for all existing VMs.
+    
+    Called on service startup so that VMs provisioned before a restart
+    (or an ansible re-deploy that flushes iptables) regain SSH access.
+    
+    Idempotent: removes any existing rule first, then re-adds it.
+    
+    Args:
+        vms: list of VM records from the database (need 'host_port' and 'ip')
+    
+    Returns:
+        Number of port forwards successfully restored
+    """
+    restored = 0
+    for vm in vms:
+        host_port = vm.get("host_port")
+        vm_ip = vm.get("ip")
+        if not host_port or not vm_ip:
+            continue
+        
+        # Remove any stale rules first (ignore errors if they don't exist)
+        try:
+            remove_port_forward(host_port, vm_ip)
+        except Exception:
+            pass
+        
+        # Re-add the rules
+        try:
+            add_port_forward(host_port, vm_ip)
+            restored += 1
+        except Exception as e:
+            logger.warning(
+                f"Failed to restore port forward for VM {vm.get('id')}: {e}"
+            )
+    
+    return restored
+
+
 def get_vm_ip_from_leases(mac_address: str, timeout: int = 30) -> str | None:
     """
     Get VM IP from libvirt's dnsmasq leases file.

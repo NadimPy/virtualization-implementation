@@ -168,6 +168,8 @@
           - "--exclude=ansible"
       become: false
       delegate_to: localhost
+      register: app_files_copy
+      notify: Restart vm-provisioner
 
     - name: Set ownership of application files
       ansible.builtin.file:
@@ -188,6 +190,7 @@
         cmd: "{{ uv_bin }} sync"
         chdir: "{{ app_dir }}"
       become_user: "{{ app_user }}"
+      notify: Restart vm-provisioner
 
     - name: Set ownership of application and venv files
       ansible.builtin.file:
@@ -229,6 +232,7 @@
           [Install]
           WantedBy=multi-user.target
         mode: '0644'
+      notify: Restart vm-provisioner
 
     - name: Enable and start vm-provisioner service
       ansible.builtin.systemd:
@@ -370,3 +374,9 @@
       ansible.builtin.systemd:
         name: nginx
         state: reloaded
+
+    - name: Restart vm-provisioner
+      ansible.builtin.systemd:
+        name: vm-provisioner
+        daemon_reload: true
+        state: restarted

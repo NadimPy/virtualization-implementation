@@ -25,6 +25,7 @@ from SQL.VM_related import (
     get_vm_by_id, 
     list_vms_by_owner, 
     delete_vm_record,
+    list_all_vms,
     VMRecord
 )
 from libvirt_client import (
@@ -40,7 +41,8 @@ from network import (
     allocate_port, 
     add_port_forward, 
     remove_port_forward,
-    poll_vm_ip
+    poll_vm_ip,
+    restore_port_forwards
 )
 
 import uuid
@@ -67,6 +69,20 @@ class CreateVMRequest(BaseModel):
 async def lifespan(app: FastAPI):
     ensure_directories()
     init_db()
+    
+    # Restore iptables port-forward rules for all existing VMs.
+    # After a service restart (or ansible re-deploy), iptables rules are gone
+    # but the VMs are still running.  Re-create them from the database.
+    try:
+        vms = list_all_vms()
+        if vms:
+            restored = restore_port_forwards(vms)
+            logger.info(
+                f"Restored {restored}/{len(vms)} port forwards for existing VMs"
+            )
+    except Exception as e:
+        logger.warning(f"Failed to restore port forwards on startup: {e}")
+    
     logger.info("VM Provisioner started")
     yield
     logger.info("VM Provisioner shutting down")
