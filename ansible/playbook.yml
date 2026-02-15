@@ -80,6 +80,13 @@
       ansible.builtin.pip:
         name: uv
         executable: pip3
+        extra_args: --break-system-packages
+
+    - name: Create Python virtual environment with uv
+      ansible.builtin.command:
+        cmd: "{{ app_dir }}/.local/bin/uv venv"
+        creates: "{{ app_dir }}/.venv"
+        chdir: "{{ app_dir }}"
 
     - name: Copy application files
       ansible.builtin.synchronize:
@@ -109,7 +116,7 @@
 
     - name: Install Python dependencies using uv
       ansible.builtin.command:
-        cmd: uv add fastapi uvicorn pycdlib jinja2 python-dotenv libvirt-python scrypt
+        cmd: "{{ app_dir }}/.local/bin/uv add fastapi uvicorn pycdlib jinja2 python-dotenv libvirt-python scrypt"
         chdir: "{{ app_dir }}"
 
     - name: Create systemd service file
@@ -128,7 +135,7 @@
           Environment="PATH={{ app_dir }}/.venv/bin:/usr/local/bin:/usr/bin:/bin"
           Environment="PYTHONPATH={{ app_dir }}"
           Environment="DATA_DIR={{ data_dir }}"
-          ExecStart={{ app_dir }}/.venv/bin/uv run uvicorn main:app --host 0.0.0.0 --port {{ app_port }} --proxy-headers --forwarded-allow-ips=*
+          ExecStart=/usr/local/bin/uv run uvicorn main:app --host 0.0.0.0 --port {{ app_port }} --proxy-headers --forwarded-allow-ips=*
           Restart=always
           RestartSec=10
 
