@@ -118,11 +118,20 @@
         cmd: "{{ uv_bin }} venv"
         creates: "{{ app_dir }}/.venv"
         chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
 
     - name: Install Python dependencies using uv
       ansible.builtin.command:
         cmd: "{{ uv_bin }} sync"
         chdir: "{{ app_dir }}"
+      become_user: "{{ app_user }}"
+
+    - name: Set ownership of application and venv files
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        recurse: true
 
     - name: Create systemd service file
       ansible.builtin.copy:
