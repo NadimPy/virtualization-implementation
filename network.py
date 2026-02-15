@@ -36,9 +36,12 @@ def add_port_forward(host_port: int, vm_ip: str) -> None:
     
     This allows: ssh -p <host_port> user@<server_public_ip>
     
-    Two rules are needed:
+    Three rules are needed:
       1. PREROUTING DNAT: rewrite destination to vm_ip:22
       2. FORWARD ACCEPT: allow the rewritten packet through to the VM
+         (inserted at top of chain so it comes before libvirt's REJECT rules)
+      3. POSTROUTING MASQUERADE: source-NAT so VM reply traffic routes back
+         through the host correctly
     """
     # DNAT rule in PREROUTING
     dnat_cmd = [
@@ -50,21 +53,35 @@ def add_port_forward(host_port: int, vm_ip: str) -> None:
     ]
     subprocess.run(dnat_cmd, check=True, capture_output=True, text=True)
     
-    # FORWARD rule to allow the DNAT'd traffic through
+    # FORWARD rule — use -I (insert at top) instead of -A (append) so it is
+    # evaluated before libvirt's default REJECT rules for the virbr0 bridge.
     forward_cmd = [
-        "iptables", "-A", "FORWARD",
+        "iptables", "-I", "FORWARD",
         "-p", "tcp",
         "-d", vm_ip,
         "--dport", "22",
+        "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED",
         "-j", "ACCEPT"
     ]
     subprocess.run(forward_cmd, check=True, capture_output=True, text=True)
+    
+    # MASQUERADE rule so that DNAT'd traffic arriving at the VM appears to come
+    # from the host bridge IP.  This guarantees reply packets route back through
+    # the host where conntrack can reverse the DNAT.
+    masq_cmd = [
+        "iptables", "-t", "nat", "-A", "POSTROUTING",
+        "-p", "tcp",
+        "-d", vm_ip,
+        "--dport", "22",
+        "-j", "MASQUERADE"
+    ]
+    subprocess.run(masq_cmd, check=True, capture_output=True, text=True)
     
     logger.info(f"Added port forward: host:{host_port} -> {vm_ip}:22")
 
 
 def remove_port_forward(host_port: int, vm_ip: str) -> None:
-    """Remove iptables DNAT and FORWARD rules when VM is destroyed."""
+    """Remove iptables DNAT, FORWARD, and MASQUERADE rules when VM is destroyed."""
     # Remove DNAT rule
     dnat_cmd = [
         "iptables", "-t", "nat", "-D", "PREROUTING",
@@ -73,17 +90,28 @@ def remove_port_forward(host_port: int, vm_ip: str) -> None:
         "-j", "DNAT",
         "--to-destination", f"{vm_ip}:22"
     ]
-    subprocess.run(dnat_cmd, check=True, capture_output=True, text=True)
+    subprocess.run(dnat_cmd, check=False, capture_output=True, text=True)
     
-    # Remove FORWARD rule
+    # Remove FORWARD rule (matches the -I rule we added)
     forward_cmd = [
         "iptables", "-D", "FORWARD",
         "-p", "tcp",
         "-d", vm_ip,
         "--dport", "22",
+        "-m", "conntrack", "--ctstate", "NEW,ESTABLISHED,RELATED",
         "-j", "ACCEPT"
     ]
     subprocess.run(forward_cmd, check=False, capture_output=True, text=True)
+    
+    # Remove MASQUERADE rule
+    masq_cmd = [
+        "iptables", "-t", "nat", "-D", "POSTROUTING",
+        "-p", "tcp",
+        "-d", vm_ip,
+        "--dport", "22",
+        "-j", "MASQUERADE"
+    ]
+    subprocess.run(masq_cmd, check=False, capture_output=True, text=True)
     
     logger.info(f"Removed port forward: host:{host_port} -> {vm_ip}:22")
 
@@ -108,19 +136,42 @@ def get_vm_ip_from_leases(mac_address: str, timeout: int = 30) -> str | None:
     return None
 
 
-def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 60) -> str:
+def _suppress_libvirt_errors():
+    """
+    Install a no-op libvirt error handler to suppress stderr spam.
+    
+    The default libvirt error handler prints messages like
+    'libvirt: QEMU Driver error : Guest agent is not responding'
+    directly to stderr every time a guest-agent query fails.
+    Replacing the handler silences this while we still catch the
+    libvirtError exception in Python.
+    """
+    def _noop_error_handler(_userdata, _error):
+        pass
+    
+    libvirt.registerErrorHandler(_noop_error_handler, None)
+
+
+def _restore_libvirt_errors():
+    """Restore the default libvirt error handler."""
+    libvirt.registerErrorHandler(None, None)
+
+
+def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 120) -> str:
     """
     Poll for VM IP address using multiple methods.
     
-    Tries in order:
-      1. DHCP lease from libvirt's dnsmasq (no guest agent needed)
-      2. QEMU guest agent (requires qemu-guest-agent in the VM)
-      3. dnsmasq leases file on disk (last resort fallback)
+    Strategy:
+      - Wait a few seconds for the VM to boot before polling.
+      - Primarily use DHCP leases (works without a guest agent).
+      - Try the guest agent only after an initial grace period.
+      - Fall back to reading dnsmasq leases file on disk.
     
     Args:
         libvirt_conn: libvirt connection object
         vm_uuid: Libvirt UUID string
-        timeout: Seconds to wait for IP
+        timeout: Seconds to wait for IP (default raised to 120 for
+                 slower-booting images like Rocky Linux)
     
     Returns:
         VM's internal IP address (e.g., 192.168.122.45)
@@ -130,49 +181,76 @@ def poll_vm_ip(libvirt_conn, vm_uuid: str, timeout: int = 60) -> str:
     """
     dom = libvirt_conn.lookupByUUIDString(vm_uuid)
     mac_address = None
+    poll_interval = 2
+    max_attempts = timeout // poll_interval
     
-    for attempt in range(timeout // 2):
-        # Method 1: DHCP leases via libvirt API (most reliable, no agent needed)
-        try:
-            ifaces = dom.interfaceAddresses(
-                libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE
-            )
-            for iface_name, iface_data in ifaces.items():
-                if mac_address is None and iface_data.get("hwaddr"):
-                    mac_address = iface_data["hwaddr"]
-                for addr in iface_data.get("addrs", []):
-                    ip = addr.get("addr")
-                    if ip and not ip.startswith("127."):
-                        logger.info(f"Found IP {ip} for VM {vm_uuid} via DHCP lease")
-                        return ip
-        except libvirt.libvirtError:
-            pass
-        
-        # Method 2: QEMU guest agent (works if agent is installed in VM)
-        try:
-            ifaces = dom.interfaceAddresses(
-                libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
-            )
-            for iface_name, iface_data in ifaces.items():
-                for addr in iface_data.get("addrs", []):
-                    if addr.get("type") == libvirt.VIR_IP_ADDR_TYPE_IPV4:
+    # Seconds before we start trying the guest agent (let cloud-init install it)
+    agent_grace_seconds = 30
+    
+    # Suppress libvirt's default stderr error handler so guest-agent failures
+    # don't flood the journal with 'Guest agent is not responding' messages.
+    _suppress_libvirt_errors()
+    
+    try:
+        for attempt in range(max_attempts):
+            elapsed = attempt * poll_interval
+            
+            # Method 1: DHCP leases via libvirt API (most reliable, no agent needed)
+            try:
+                ifaces = dom.interfaceAddresses(
+                    libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_LEASE
+                )
+                for iface_name, iface_data in ifaces.items():
+                    if mac_address is None and iface_data.get("hwaddr"):
+                        mac_address = iface_data["hwaddr"]
+                    for addr in iface_data.get("addrs", []):
                         ip = addr.get("addr")
                         if ip and not ip.startswith("127."):
-                            logger.info(f"Found IP {ip} for VM {vm_uuid} via guest agent")
+                            logger.info(f"Found IP {ip} for VM {vm_uuid} via DHCP lease")
                             return ip
-        except libvirt.libvirtError:
-            pass
+            except libvirt.libvirtError:
+                pass
+            
+            # Method 2: QEMU guest agent — only try after the grace period
+            # so we don't spam errors while cloud-init is still installing it.
+            if elapsed >= agent_grace_seconds:
+                try:
+                    ifaces = dom.interfaceAddresses(
+                        libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
+                    )
+                    for iface_name, iface_data in ifaces.items():
+                        for addr in iface_data.get("addrs", []):
+                            if addr.get("type") == libvirt.VIR_IP_ADDR_TYPE_IPV4:
+                                ip = addr.get("addr")
+                                if ip and not ip.startswith("127."):
+                                    logger.info(
+                                        f"Found IP {ip} for VM {vm_uuid} via guest agent"
+                                    )
+                                    return ip
+                except libvirt.libvirtError:
+                    pass
+            
+            # Log progress every 10 seconds instead of spamming every 2s
+            if elapsed > 0 and elapsed % 10 == 0:
+                logger.info(
+                    f"Waiting for IP for VM {vm_uuid}... ({elapsed}s/{timeout}s)"
+                )
+            
+            time.sleep(poll_interval)
         
-        time.sleep(2)
+        # Method 3: Fall back to reading dnsmasq leases file directly
+        if mac_address:
+            ip = get_vm_ip_from_leases(mac_address, timeout=15)
+            if ip:
+                logger.info(f"Found IP {ip} for VM {vm_uuid} via leases file")
+                return ip
+        
+        raise TimeoutError(f"Could not get IP for VM {vm_uuid} within {timeout}s")
     
-    # Method 3: Fall back to reading dnsmasq leases file directly
-    if mac_address:
-        ip = get_vm_ip_from_leases(mac_address, timeout=10)
-        if ip:
-            logger.info(f"Found IP {ip} for VM {vm_uuid} via leases file")
-            return ip
-    
-    raise TimeoutError(f"Could not get IP for VM {vm_uuid} within {timeout}s")
+    finally:
+        # Always restore the default error handler so other libvirt operations
+        # still report errors normally.
+        _restore_libvirt_errors()
 
 
 def generate_mac_address(vm_id: str) -> str:
