@@ -166,8 +166,7 @@
         destination_port: "{{ item }}"
         jump: ACCEPT
         comment: "VM Provisioner SSH port {{ item }}"
-      loop:
-        - "{{ range(start_port, end_port + 1)|list }}"
+      loop: "{{ range(start_port, end_port + 1)|list }}"
       ignore_errors: true
 
     # SSL Configuration Tasks
@@ -250,7 +249,7 @@
 
     - name: Download Rocky Linux 9 base image
       ansible.builtin.get_url:
-        url: https://download.rockylinux.org/pub/rocky/9/BaseOS/x86_64/images/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
+        url: https://dl.rockylinux.org/pub/rocky/9/images/x86_64/Rocky-9-GenericCloud-Base.latest.x86_64.qcow2
         dest: "{{ data_dir }}/images/rocky-9-template.qcow2"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
@@ -259,7 +258,7 @@
 
     - name: Download Alpine Linux base image
       ansible.builtin.get_url:
-        url: https://dl.alpinelinux.org/alpine/v3.19/releases/x86_64/alpine-virt-3.19.0-x86_64.qcow2
+        url: https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/x86_64/alpine-virt-3.21.3-x86_64.qcow2
         dest: "{{ data_dir }}/images/alpine-template.qcow2"
         owner: "{{ app_user }}"
         group: "{{ app_user }}"
