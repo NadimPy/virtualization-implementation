@@ -22,6 +22,7 @@
     domain: beirut-central1.nadimchendy.com
     ssl_email: zadzack409@gmail.com
     app_port: 8000
+    uv_bin: /usr/local/bin/uv
 
   tasks:
     - name: Update apt cache
@@ -82,12 +83,6 @@
         executable: pip3
         extra_args: --break-system-packages
 
-    - name: Create Python virtual environment with uv
-      ansible.builtin.command:
-        cmd: "{{ app_dir }}/.local/bin/uv venv"
-        creates: "{{ app_dir }}/.venv"
-        chdir: "{{ app_dir }}"
-
     - name: Copy application files
       ansible.builtin.synchronize:
         src: ../
@@ -110,13 +105,13 @@
 
     - name: Create Python virtual environment with uv
       ansible.builtin.command:
-        cmd: uv venv
+        cmd: "{{ uv_bin }} venv"
         creates: "{{ app_dir }}/.venv"
         chdir: "{{ app_dir }}"
 
     - name: Install Python dependencies using uv
       ansible.builtin.command:
-        cmd: "{{ app_dir }}/.local/bin/uv add fastapi uvicorn pycdlib jinja2 python-dotenv libvirt-python scrypt"
+        cmd: "{{ uv_bin }} add fastapi uvicorn pycdlib jinja2 python-dotenv libvirt-python scrypt"
         chdir: "{{ app_dir }}"
 
     - name: Create systemd service file
@@ -135,7 +130,7 @@
           Environment="PATH={{ app_dir }}/.venv/bin:/usr/local/bin:/usr/bin:/bin"
           Environment="PYTHONPATH={{ app_dir }}"
           Environment="DATA_DIR={{ data_dir }}"
-          ExecStart=/usr/local/bin/uv run uvicorn main:app --host 0.0.0.0 --port {{ app_port }} --proxy-headers --forwarded-allow-ips=*
+          ExecStart={{ uv_bin }} run uvicorn main:app --host 0.0.0.0 --port {{ app_port }} --proxy-headers --forwarded-allow-ips=*
           Restart=always
           RestartSec=10
 
