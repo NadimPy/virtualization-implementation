@@ -52,6 +52,14 @@
           - python3-certbot-nginx
         state: present
 
+    - name: Enable IPv4 forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: true
+        state: present
+        reload: true
+
     - name: Enable and start libvirtd
       ansible.builtin.systemd:
         name: libvirtd
