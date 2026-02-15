@@ -26,9 +26,16 @@ def init_db():
                 disk_path TEXT NOT NULL,
                 iso_path TEXT NOT NULL,
                 created_at TEXT NOT NULL,
+                image_type TEXT NOT NULL DEFAULT 'debian-12',
                 FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
             );
         """)
+        # Migration: add image_type column to existing databases
+        try:
+            conn.execute("ALTER TABLE vms ADD COLUMN image_type TEXT NOT NULL DEFAULT 'debian-12'")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column already exists
         conn.commit()
 
 @contextmanager

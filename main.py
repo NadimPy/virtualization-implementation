@@ -207,7 +207,8 @@ async def create_vm(
             "host_port": host_port,
             "disk_path": disk_path,
             "iso_path": iso_path,
-            "created_at": now
+            "created_at": now,
+            "image_type": image_type
         }
         await loop.run_in_executor(None, add_vm_record, vm_record)
         
@@ -223,7 +224,7 @@ async def create_vm(
                 "host": server_ip,
                 "port": host_port,
                 "username": username,
-                "command": f"ssh -p {host_port} {username}@{server_ip}"
+                "command": f"ssh -p {host_port} {username}@{server_ip} -i ~/.ssh/id_rsa"
             },
             "specs": {
                 "memory_mb": memory_mb,
@@ -251,8 +252,8 @@ def list_vms(user: dict = Depends(get_current_user)):
         except Exception as e:
             status = "unknown"
         
-        # Determine username from image_type if stored, default to "debian"
-        image_type = vm.get("image_type", "debian-12")
+        # Get username from stored image_type
+        image_type = vm.get("image_type") or "debian-12"
         username = IMAGES.get(image_type, {}).get("username", "debian")
         
         result.append({
@@ -277,18 +278,20 @@ def get_vm(vm_id: str, user: dict = Depends(get_current_user)):
     
     server_ip = os.getenv("SERVER_PUBLIC_IP", "127.0.0.1")
     
-    # Determine username from iso_path or store image_type in DB
-    username = "debian"  # Default, should parse from stored data
+    # Get username from stored image_type
+    image_type = vm.get("image_type") or "debian-12"
+    username = IMAGES.get(image_type, {}).get("username", "debian")
     
     return {
         "id": vm["id"],
         "name": vm["name"],
         "status": get_domain_state(vm["id"]),
+        "image_type": image_type,
         "ssh_connection": {
             "host": server_ip,
             "port": vm["host_port"],
             "username": username,
-            "command": f"ssh -p {vm['host_port']} {username}@{server_ip}"
+            "command": f"ssh -p {vm['host_port']} {username}@{server_ip} -i ~/.ssh/id_rsa"
         },
         "created_at": vm["created_at"]
     }

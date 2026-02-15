@@ -16,14 +16,15 @@ class VMRecord(TypedDict):
     disk_path: str
     iso_path: str
     created_at: str
+    image_type: str
 
 def add_vm_record(vm: VMRecord) -> None:
     with get_conn() as conn:
         conn.execute(
             """INSERT INTO vms (id, name, owner_id, status, host_port, 
-                              disk_path, iso_path, created_at, ip)
+                              disk_path, iso_path, created_at, ip, image_type)
                VALUES (:id, :name, :owner_id, :status, :host_port,
-                       :disk_path, :iso_path, :created_at, :ip)""",
+                       :disk_path, :iso_path, :created_at, :ip, :image_type)""",
             vm
         )
         conn.commit()
