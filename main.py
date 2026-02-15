@@ -8,6 +8,7 @@ from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from config import (
     ensure_directories, 
@@ -47,6 +48,19 @@ from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+class AuthRequest(BaseModel):
+    name: str
+    password: str
+
+
+class CreateVMRequest(BaseModel):
+    name: str
+    ssh_key: str
+    image_type: str = "debian-12"
+    memory_mb: int = 512
+    vcpus: int = 1
 
 
 @asynccontextmanager
@@ -123,16 +137,18 @@ def cleanup_vm_resources(vm_id: str, host_port: int | None, vm_ip: str | None,
 
 @app.post("/vms")
 async def create_vm(
-    name: str,
-    ssh_key: str,
-    image_type: str = "debian-12",
-    memory_mb: int = 512,
-    vcpus: int = 1,
+    body: CreateVMRequest,
     user: dict = Depends(get_current_user)
 ):
     """
     Create a new VM.
     """
+    name = body.name
+    ssh_key = body.ssh_key
+    image_type = body.image_type
+    memory_mb = body.memory_mb
+    vcpus = body.vcpus
+
     # Validate inputs
     if image_type not in IMAGES:
         raise HTTPException(400, f"Unknown image type: {image_type}")
@@ -311,11 +327,14 @@ def list_images():
 
 
 @app.post("/auth/signup")
-async def signup(name: str, password: str):
+async def signup(body: AuthRequest):
     """
     Register a new user. Returns the API key (shown only once).
     """
     import secrets
+    
+    name = body.name
+    password = body.password
     
     # Generate a secure API key
     api_key = secrets.token_urlsafe(32)
@@ -335,10 +354,13 @@ async def signup(name: str, password: str):
 
 
 @app.post("/auth/login")
-async def login(name: str, password: str):
+async def login(body: AuthRequest):
     """
     Login with username and password. Returns the API key if valid.
     """
+    name = body.name
+    password = body.password
+    
     from SQL.USERS_related import verify_password
     from SQL.database import get_conn
     
