@@ -38,6 +38,7 @@
           - pkg-config
           - libvirt-dev
           - libvirt-daemon-system
+          - dnsmasq-base
           - qemu-kvm
           - python3-dev
           - python3-pip
@@ -56,6 +57,49 @@
         name: libvirtd
         enabled: true
         state: started
+
+    - name: Check if libvirt default network exists
+      ansible.builtin.command:
+        cmd: virsh net-info default
+      register: net_check
+      failed_when: false
+      changed_when: false
+
+    - name: Define libvirt default network if missing
+      ansible.builtin.copy:
+        dest: /tmp/libvirt-default-network.xml
+        content: |
+          <network>
+            <name>default</name>
+            <forward mode='nat'/>
+            <bridge name='virbr0' stp='on' delay='0'/>
+            <ip address='192.168.122.1' netmask='255.255.255.0'>
+              <dhcp>
+                <range start='192.168.122.2' end='192.168.122.254'/>
+              </dhcp>
+            </ip>
+          </network>
+        mode: '0644'
+      when: net_check.rc != 0
+
+    - name: Register libvirt default network
+      ansible.builtin.command:
+        cmd: virsh net-define /tmp/libvirt-default-network.xml
+      when: net_check.rc != 0
+
+    - name: Activate libvirt default network
+      ansible.builtin.command:
+        cmd: virsh net-start default
+      register: net_start
+      failed_when: false
+      changed_when: "'started' in net_start.stdout"
+
+    - name: Set libvirt default network to autostart
+      ansible.builtin.command:
+        cmd: virsh net-autostart default
+      register: net_autostart
+      failed_when: false
+      changed_when: "'marked as autostarted' in net_autostart.stdout"
 
     - name: Create application user
       ansible.builtin.user:
