@@ -51,7 +51,8 @@ def sample_vm_record():
         "host_port": 2222,
         "disk_path": "/tmp/vm-provisioner-test/instances/test-vm-123.qcow2",
         "iso_path": "/tmp/vm-provisioner-test/cloud-init/test-vm-123.iso",
-        "created_at": "2024-01-01T00:00:00"
+        "created_at": "2024-01-01T00:00:00",
+        "image_type": "debian-12"
     }
 
 

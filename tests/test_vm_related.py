@@ -124,7 +124,8 @@ class TestVMRelated:
             "host_port": 2222,
             "disk_path": "/path/to/disk.qcow2",
             "iso_path": "/path/to/iso.iso",
-            "created_at": "2024-01-01T00:00:00"
+            "created_at": "2024-01-01T00:00:00",
+            "image_type": "debian-12"
         }
         
         assert vm['id'] == "test-123"
