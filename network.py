@@ -51,8 +51,9 @@ def add_port_forward(host_port: int, vm_ip: str) -> None:
     subprocess.run(dnat_cmd, check=True, capture_output=True, text=True)
     
     # FORWARD rule to allow the DNAT'd traffic through
+    # Must INSERT (-I) at top, before libvirt's REJECT rules in LIBVIRT_FWI
     forward_cmd = [
-        "iptables", "-A", "FORWARD",
+        "iptables", "-I", "FORWARD", "1",
         "-p", "tcp",
         "-d", vm_ip,
         "--dport", "22",
