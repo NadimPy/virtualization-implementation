@@ -33,6 +33,10 @@ if ! command -v ansible-playbook &> /dev/null; then
     export PATH="$HOME/.local/bin:$PATH"
 fi
 
+# Install ansible collections
+echo -e "${YELLOW}Installing Ansible collections...${NC}"
+~/.local/bin/ansible-galaxy collection install community.general ansible.posix
+
 # Check inventory file
 if [ ! -f "ansible/inventory.ini" ]; then
     echo -e "${RED}Error: ansible/inventory.ini not found${NC}"
