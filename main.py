@@ -6,6 +6,8 @@ from typing import Annotated
 
 from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from config import (
     ensure_directories, 
@@ -57,6 +59,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="VM Provisioner", lifespan=lifespan)
+
+# Serve frontend static files
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+@app.get("/")
+async def serve_frontend():
+    """Serve the dashboard frontend."""
+    from pathlib import Path
+    frontend_path = Path(__file__).parent / "frontend" / "index.html"
+    return FileResponse(frontend_path)
 
 app.add_middleware(
     CORSMiddleware,
@@ -295,6 +307,78 @@ def list_images():
     return {
         key: {"name": val["name"], "username": val["username"]}
         for key, val in IMAGES.items()
+    }
+
+
+@app.post("/auth/signup")
+async def signup(name: str, password: str):
+    """
+    Register a new user. Returns the API key (shown only once).
+    """
+    import secrets
+    
+    # Generate a secure API key
+    api_key = secrets.token_urlsafe(32)
+    
+    # Add user to database
+    from SQL.USERS_related import add_user
+    user = add_user(name, password, api_key)
+    
+    if user is None:
+        raise HTTPException(400, "User already exists or invalid data")
+    
+    return {
+        "message": "User created successfully",
+        "api_key": api_key,
+        "user_id": user["id"]
+    }
+
+
+@app.post("/auth/login")
+async def login(name: str, password: str):
+    """
+    Login with username and password. Returns the API key if valid.
+    """
+    from SQL.USERS_related import verify_password
+    from SQL.database import get_conn
+    
+    # Get user by name
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, name, hashed_password, api_key_hash FROM users WHERE name = ?",
+            (name,)
+        ).fetchone()
+    
+    if not row:
+        raise HTTPException(401, "Invalid username or password")
+    
+    user = dict(row)
+    
+    # Verify password
+    if not verify_password(password, user["hashed_password"]):
+        raise HTTPException(401, "Invalid username or password")
+    
+    # Get the plaintext API key (we need to store it or have a way to retrieve it)
+    # For now, let's regenerate a new API key on login
+    import secrets
+    new_api_key = secrets.token_urlsafe(32)
+    
+    # Update the API key in database
+    from SQL.USERS_related import hash_api_key
+    new_hash = hash_api_key(new_api_key)
+    
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE users SET api_key_hash = ? WHERE id = ?",
+            (new_hash, user["id"])
+        )
+        conn.commit()
+    
+    return {
+        "message": "Login successful",
+        "api_key": new_api_key,
+        "user_id": user["id"],
+        "name": user["name"]
     }
 
 

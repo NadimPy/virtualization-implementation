@@ -1,6 +1,6 @@
 # Infrastructure Setup Guide
 
-This document provides complete step-by-step instructions to set up the VM Provisioner from scratch using **Ansible automation** - including SSL/HTTPS!
+This document provides complete step-by-step instructions to set up the VM Provisioner from scratch using **Ansible automation** with SSL/HTTPS enabled by default.
 
 ## Table of Contents
 
@@ -23,13 +23,13 @@ This document provides complete step-by-step instructions to set up the VM Provi
 - Root or sudo access via SSH
 - At least 8GB RAM, 100GB storage
 - CPU with virtualization support (Intel VT-x/AMD-V)
-- **For SSL**: A domain name pointing to your server's IP
+- Domain pointing to server's IP: `beirut-central1.nadimchendy.com`
 
 ---
 
 ## Quick Start
 
-### Deploy without SSL (HTTP only)
+### Deploy with Ansible (SSL/HTTPS enabled by default)
 ```bash
 git clone https://github.com/your-repo/virtualization-implementation.git
 cd virtualization-implementation
@@ -37,23 +37,13 @@ nano ansible/inventory.ini  # Add your server IP
 bash ansible/setup.sh
 ```
 
-### Deploy WITH SSL (HTTPS)
-```bash
-git clone https://github.com/your-repo/virtualization-implementation.git
-cd virtualization-implementation
-nano ansible/inventory.ini  # Add your server IP
-
-# Run with SSL - just add your domain!
-bash ansible/setup.sh --ssl vm.yourdomain.com
-```
-
 That's it! 🎉 The playbook will:
 - ✅ Install all system dependencies
 - ✅ Set up libvirt/KVM
 - ✅ Deploy the application
-- ✅ Install and configure Nginx
+- ✅ Install and configure Nginx with SSL
 - ✅ Get SSL certificate from Let's Encrypt
-- ✅ Start the service with HTTPS
+- ✅ Start the service with HTTPS at https://beirut-central1.nadimchendy.com
 
 ---
 
@@ -73,23 +63,18 @@ nano ansible/inventory.ini
 [vm_provisioner:vars]
 app_dir=/opt/vm-provisioner
 data_dir=/var/lib/vm-provisioner
+enable_ssl=true
+domain=beirut-central1.nadimchendy.com
 ```
 
 #### 2. Run the Playbook
-
-**Without SSL:**
 ```bash
 ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
 ```
 
-**With SSL (automated):**
+Or use the setup script:
 ```bash
-# Option A: Via setup.sh
-bash ansible/setup.sh --ssl vm.yourdomain.com
-
-# Option B: Direct ansible command
-ansible-playbook -i ansible/inventory.ini ansible/playbook.yml \
-  -e "enable_ssl=true domain=vm.yourdomain.com"
+bash ansible/setup.sh
 ```
 
 ### What the Playbook Does
@@ -97,11 +82,11 @@ ansible-playbook -i ansible/inventory.ini ansible/playbook.yml \
 | Step | Task |
 |------|------|
 | 1 | Updates apt cache |
-| 2 | Installs system packages (libvirt, qemu, python, nginx, certbot) |
+| 2 | Installs system packages (libvirt, qemu, nginx, certbot) |
 | 3 | Creates service user (`vmprovisioner`) |
 | 4 | Creates data directories |
 | 5 | Copies application files |
-| 6 | Sets up Python virtual environment |
+| 6 | Sets up Python virtual environment with uv |
 | 7 | Installs Python dependencies |
 | 8 | Creates systemd service |
 | 9 | Configures iptables for port forwarding |
@@ -109,20 +94,6 @@ ansible-playbook -i ansible/inventory.ini ansible/playbook.yml \
 | 11 | Gets SSL certificate from Let's Encrypt |
 | 12 | Downloads Debian 12 base image |
 | 13 | Starts the service |
-
-### SSL Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `enable_ssl` | Enable SSL/HTTPS | `false` |
-| `domain` | Your domain name | `""` |
-| `app_port` | Backend port | `8000` |
-
-Example with custom port:
-```bash
-ansible-playbook -i ansible/inventory.ini ansible/playbook.yml \
-  -e "enable_ssl=true domain=vm.example.com app_port=8080"
-```
 
 ---
 
@@ -136,11 +107,7 @@ systemctl status nginx
 
 ### Test API
 ```bash
-# With SSL
-curl https://vm.yourdomain.com/health
-
-# Without SSL
-curl http://your-server-ip:8000/health
+curl https://beirut-central1.nadimchendy.com/health
 ```
 
 ### Check Logs
@@ -157,26 +124,27 @@ If you prefer manual setup without Ansible:
 ```bash
 # 1. Install dependencies
 apt update
-apt install -y qemu-kvm libvirt-daemon-system nginx certbot python3-venv
+apt install -y qemu-kvm libvirt-daemon-system nginx certbot
 
 # 2. Clone and setup
 cd /opt
 git clone https://github.com/your-repo/virtualization-implementation.git
 cd virtualization-implementation
 
-python3 -m venv .venv
-source .venv/bin/activate
-pip install fastapi uvicorn pycdlib jinja2 python-dotenv libvirt-python
+# Initialize uv project
+uv init
+uv add fastapi uvicorn pycdlib jinja2 python-dotenv libvirt-python
 
+# Create directories
 mkdir -p /var/lib/vm-provisioner/{images,instances,cloud-init}
 chmod -R 777 /var/lib/vm-provisioner
 cp .env.example .env
 
-# 3. Run
-python main.py &
+# 3. Configure SSL with certbot
+certbot --nginx -d beirut-central1.nadimchendy.com
 
-# 4. Setup Nginx with SSL
-certbot --nginx -d your-domain.com
+# 4. Run with uvicorn (behind nginx proxy)
+uv run uvicorn main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips=*
 ```
 
 ---
@@ -195,7 +163,7 @@ ansible -i ansible/inventory.ini all -m ping
 ### Certbot SSL Issues
 ```bash
 # Check if domain points to correct IP
-dig your-domain.com
+dig beirut-central1.nadimchendy.com
 
 # Check nginx error logs
 tail -f /var/log/nginx/error.log

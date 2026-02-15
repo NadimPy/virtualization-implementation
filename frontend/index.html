@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VM Provisioner Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        h1 span {
+            font-size: 32px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-name {
+            color: #00d9ff;
+            font-weight: 500;
+        }
+        
+        .btn-logout {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        input, textarea, select {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            width: 100%;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #00d9ff 0%, #00a8cc 100%);
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,217,255,0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        button.danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+            color: #fff;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: monospace;
+        }
+        
+        .vms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .vm-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .vm-card:hover {
+            border-color: rgba(0,217,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .vm-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .vm-name {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .vm-status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .vm-status.running {
+            background: rgba(0,255,136,0.2);
+            color: #00ff88;
+        }
+        
+        .vm-status.shut off {
+            background: rgba(255,107,107,0.2);
+            color: #ff6b6b;
+        }
+        
+        .vm-status.unknown {
+            background: rgba(255,255,255,0.1);
+            color: #aaa;
+        }
+        
+        .vm-details {
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 16px;
+        }
+        
+        .vm-details div {
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .vm-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .vm-actions button {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+        
+        /* Auth Pages */
+        .auth-container {
+            max-width: 400px;
+            margin: 100px auto;
+            padding: 40px;
+        }
+        
+        .auth-card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            padding: 40px;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        
+        .auth-card h2 {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        
+        .auth-card .form-group {
+            text-align: left;
+        }
+        
+        .auth-card button {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .auth-switch {
+            margin-top: 20px;
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        .auth-switch a {
+            color: #00d9ff;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .auth-switch a:hover {
+            text-decoration: underline;
+        }
+        
+        .api-key-display {
+            background: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            word-break: break-all;
+            font-size: 12px;
+            color: #00ff88;
+        }
+        
+        .api-key-warning {
+            background: rgba(255,107,107,0.1);
+            border: 1px solid rgba(255,107,107,0.3);
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #ff6b6b;
+            margin: 15px 0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255,255,255,0.5);
+        }
+        
+        .empty-state span {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 16px;
+        }
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #00d9ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: 500;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+            color: #000;
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.05);
+            padding: 4px;
+            border-radius: 8px;
+            width: fit-content;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .tab.active {
+            background: rgba(0,217,255,0.2);
+            color: #00d9ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header id="mainHeader" class="hidden">
+            <h1><span>☁️</span> VM Provisioner</h1>
+            <div class="user-info">
+                <span class="user-name" id="userName"></span>
+                <button class="btn-logout" onclick="logout()">Logout</button>
+            </div>
+        </header>
+        
+        <!-- Login Page -->
+        <div id="loginPage" class="auth-container">
+            <div class="auth-card">
+                <h2>🔐 Login</h2>
+                <form onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="loginName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit">Login</button>
+                </form>
+                <div class="auth-switch">
+                    Don't have an account? <a onclick="showSignup()">Sign up</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Signup Page -->
+        <div id="signupPage" class="auth-container hidden">
+            <div class="auth-card">
+                <h2>🚀 Create Account</h2>
+                <form onsubmit="handleSignup(event)">
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" id="signupName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="signupPassword" required>
+                    </div>
+                    <button type="submit">Sign Up</button>
+                </form>
+                <div class="auth-switch">
+                    Already have an account? <a onclick="showLogin()">Login</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- API Key Display (after signup) -->
+        <div id="apiKeyPage" class="auth-container hidden">
+            <div class="auth-card">
+                <h2>🔑 Your API Key</h2>
+                <p>Your API key has been generated. Save it securely - you won't see it again!</p>
+                <div class="api-key-warning">
+                    ⚠️ Copy this key now. It won't be shown again!
+                </div>
+                <div class="api-key-display" id="newApiKey"></div>
+                <button onclick="saveApiKey()">Save & Continue</button>
+            </div>
+        </div>
+        
+        <!-- Dashboard -->
+        <div id="dashboard" class="hidden">
+            <div class="grid">
+                <!-- Create VM Form -->
+                <div class="card">
+                    <h2>🚀 Create Instance</h2>
+                    <form id="createForm" onsubmit="createVM(event)">
+                        <div class="form-group">
+                            <label>Instance Name</label>
+                            <input type="text" id="vmName" placeholder="my-vm" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Operating System</label>
+                            <select id="imageType" required>
+                                <option value="">Loading images...</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>SSH Public Key</label>
+                            <textarea id="sshKey" placeholder="ssh-rsa AAAAB3..." required></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Memory (MB)</label>
+                            <input type="number" id="memoryMb" value="512" min="256" max="4096" step="256">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>vCPUs</label>
+                            <input type="number" id="vcpus" value="1" min="1" max="4">
+                        </div>
+                        
+                        <button type="submit" id="createBtn">Launch Instance</button>
+                    </form>
+                </div>
+                
+                <!-- VMs List -->
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2>📋 Your Instances</h2>
+                        <button onclick="loadVMs()" style="padding: 8px 16px; font-size: 13px;">Refresh</button>
+                    </div>
+                    
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('all')">All</div>
+                        <div class="tab" onclick="switchTab('running')">Running</div>
+                        <div class="tab" onclick="switchTab('shut off')">Stopped</div>
+                    </div>
+                    
+                    <div id="vmsContainer">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast"></div>
+    
+    <script>
+        let currentTab = 'all';
+        let apiKey = '';
+        let userName = '';
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadImages();
+            
+            // Check for stored session
+            apiKey = localStorage.getItem('apiKey');
+            userName = localStorage.getItem('userName');
+            
+            if (apiKey && userName) {
+                showDashboard();
+            } else {
+                showLogin();
+            }
+        });
+        
+        // Show pages
+        function showLogin() {
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('signupPage').classList.add('hidden');
+            document.getElementById('apiKeyPage').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('mainHeader').classList.add('hidden');
+        }
+        
+        function showSignup() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('signupPage').classList.remove('hidden');
+            document.getElementById('apiKeyPage').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('mainHeader').classList.add('hidden');
+        }
+        
+        function showApiKey(key) {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('signupPage').classList.add('hidden');
+            document.getElementById('apiKeyPage').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('mainHeader').classList.add('hidden');
+            document.getElementById('newApiKey').textContent = key;
+        }
+        
+        function showDashboard() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('signupPage').classList.add('hidden');
+            document.getElementById('apiKeyPage').classList.add('hidden');
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('mainHeader').classList.remove('hidden');
+            document.getElementById('userName').textContent = userName;
+            
+            loadVMs();
+        }
+        
+        // Auth handlers
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('loginName').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, password })
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Login failed');
+                }
+                
+                const data = await response.json();
+                
+                // Save session
+                localStorage.setItem('apiKey', data.api_key);
+                localStorage.setItem('userName', data.name);
+                apiKey = data.api_key;
+                userName = data.name;
+                
+                showDashboard();
+                showToast('Welcome back, ' + data.name + '!', 'success');
+                
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        async function handleSignup(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('signupName').value;
+            const password = document.getElementById('signupPassword').value;
+            
+            try {
+                const response = await fetch('/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, password })
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Signup failed');
+                }
+                
+                const data = await response.json();
+                
+                // Show API key
+                showApiKey(data.api_key);
+                
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        function saveApiKey() {
+            const key = document.getElementById('newApiKey').textContent;
+            localStorage.setItem('apiKey', key);
+            localStorage.setItem('userName', document.getElementById('signupName').value);
+            apiKey = key;
+            userName = document.getElementById('signupName').value;
+            
+            showDashboard();
+            showToast('Account created successfully!', 'success');
+        }
+        
+        function logout() {
+            localStorage.removeItem('apiKey');
+            localStorage.removeItem('userName');
+            apiKey = '';
+            userName = '';
+            
+            // Clear form
+            document.getElementById('loginName').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('signupName').value = '';
+            document.getElementById('signupPassword').value = '';
+            
+            showLogin();
+        }
+        
+        // Load images from API
+        async function loadImages() {
+            try {
+                const response = await fetch('/images');
+                const images = await response.json();
+                
+                const select = document.getElementById('imageType');
+                select.innerHTML = '';
+                
+                for (const [key, value] of Object.entries(images)) {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = value.name;
+                    select.appendChild(option);
+                }
+            } catch (error) {
+                showToast('Failed to load images', 'error');
+            }
+        }
+        
+        // Load VMs from API
+        async function loadVMs() {
+            if (!apiKey) {
+                showLogin();
+                return;
+            }
+            
+            const container = document.getElementById('vmsContainer');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+            
+            try {
+                const response = await fetch('/vms', {
+                    headers: { 'X-API-Key': apiKey }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        logout();
+                        showToast('Session expired', 'error');
+                        return;
+                    }
+                    throw new Error('Failed to load VMs');
+                }
+                
+                const data = await response.json();
+                renderVMs(data.vms || []);
+            } catch (error) {
+                container.innerHTML = `<div class="empty-state">
+                    <span>⚠️</span>
+                    <p>${error.message}</p>
+                </div>`;
+            }
+        }
+        
+        // Render VMs
+        function renderVMs(vms) {
+            const container = document.getElementById('vmsContainer');
+            
+            // Filter by tab
+            const filtered = currentTab === 'all' ? vms : vms.filter(v => v.status.toLowerCase() === currentTab);
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="empty-state">
+                    <span>☁️</span>
+                    <p>No instances found</p>
+                </div>`;
+                return;
+            }
+            
+            container.innerHTML = `<div class="vms-grid">
+                ${filtered.map(vm => `
+                    <div class="vm-card">
+                        <div class="vm-header">
+                            <div class="vm-name">${vm.name}</div>
+                            <div class="vm-status ${vm.status.toLowerCase()}">${vm.status}</div>
+                        </div>
+                        <div class="vm-details">
+                            <div>🆔 ID: ${vm.id.substring(0, 8)}...</div>
+                            <div>🌐 IP: ${vm.ip || 'N/A'}</div>
+                            <div>🔌 Port: ${vm.port || 'N/A'}</div>
+                            <div>📅 Created: ${new Date(vm.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div class="vm-actions">
+                            <button onclick="copySSH('${vm.ip}', '${vm.port}')">Copy SSH</button>
+                            <button class="danger" onclick="deleteVM('${vm.id}')">Delete</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>`;
+        }
+        
+        // Switch tab
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadVMs();
+        }
+        
+        // Create VM
+        async function createVM(event) {
+            event.preventDefault();
+            
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+            
+            const data = {
+                name: document.getElementById('vmName').value,
+                image_type: document.getElementById('imageType').value,
+                ssh_key: document.getElementById('sshKey').value,
+                memory_mb: parseInt(document.getElementById('memoryMb').value),
+                vcpus: parseInt(document.getElementById('vcpus').value)
+            };
+            
+            try {
+                const response = await fetch('/vms', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Failed to create VM');
+                }
+                
+                const result = await response.json();
+                showToast(`VM "${result.name}" created successfully!`, 'success');
+                
+                // Reset form
+                document.getElementById('vmName').value = '';
+                document.getElementById('sshKey').value = '';
+                
+                // Reload VMs
+                loadVMs();
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Launch Instance';
+            }
+        }
+        
+        // Delete VM
+        async function deleteVM(vmId) {
+            if (!confirm('Are you sure you want to delete this instance? This cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/vms/${vmId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-API-Key': apiKey }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete VM');
+                }
+                
+                showToast('VM deleted successfully', 'success');
+                loadVMs();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        // Copy SSH command
+        function copySSH(ip, port) {
+            if (!ip || !port) {
+                showToast('IP or port not available', 'error');
+                return;
+            }
+            
+            const sshCommand = `ssh -p ${port} user@${ip}`;
+            navigator.clipboard.writeText(sshCommand).then(() => {
+                showToast('SSH command copied to clipboard!', 'success');
+            });
+        }
+        
+        // Show toast notification
+        function showToast(message, type) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
